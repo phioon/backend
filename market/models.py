@@ -576,7 +576,7 @@ class Asset(models.Model):
     asset_price = models.FloatField(null=True)
     asset_pct_change = models.FloatField(null=True)
 
-    asset_is_exception = models.BooleanField(default=False)
+    consider_for_analysis = models.BooleanField(default=False)
     asset_volatility = models.FloatField(null=True, verbose_name='Volatility percentage over last 10 days.')
     asset_volume_avg = models.IntegerField(null=True, verbose_name='Volume average over last 10 days.')
 
@@ -735,9 +735,9 @@ class Asset(models.Model):
         # ---------------------
 
         if volAvg < 10000 or volatility < 1.00:
-            self.set_exception(symbol, True)
-        elif asset.asset_is_exception is True:       # It will set to False only if it's True now.
-            self.set_exception(symbol, False)
+            self.set_consider_for_analysis(symbol, False)
+        elif asset.consider_for_analysis is False:       # It will set to False only if it's True now.
+            self.set_consider_for_analysis(symbol, True)
 
     def updateOrCreateObj(self, obj):
         if obj.asset_price is not None:
@@ -754,17 +754,10 @@ class Asset(models.Model):
             Asset.objects.update_or_create(asset_symbol=obj.asset_symbol,
                                            defaults={'asset_volume_avg': obj.asset_volume_avg})
 
-    def set_exception(self, symbol, value=True):
-        dRaw = D_raw()
-
+    def set_consider_for_analysis(self, symbol, value=True):
         Asset.objects.update_or_create(
             asset_symbol=symbol,
-            defaults={'asset_is_exception': value})
-
-        if value is True:
-            D_raw.objects.filter(asset_symbol=symbol).delete()
-        else:
-            dRaw.updateAsset(symbol, lastXrows=0)
+            defaults={'consider_for_analysis': value})
 
 
 class D_raw(models.Model):
@@ -1046,8 +1039,11 @@ class D_setup(models.Model):
         return self.asset_datetime
 
     def updateAsset(self, symbol, lastXrows=0):
-        symbolData_d.updateSetup(symbol=symbol, lastXrows=lastXrows)
-        self.updateDependencies(symbol=symbol)
+        asset = Asset.objects.get(pk=symbol)
+
+        if asset.consider_for_analysis:
+            symbolData_d.updateSetup(symbol=symbol, lastXrows=lastXrows)
+            self.updateDependencies(symbol=symbol)
 
     def updateDependencies(self, symbol):
         symbolData_d.updateSetupSummary(symbol=symbol)

@@ -34,7 +34,7 @@ def updateRaw(symbol, lastXrows):
                       % (symbol, history[x]['Message'], outputsize)
                 log.logIntoDb(log_level='ERROR', log_module='updateRaw', log_msg=msg)
 
-                a.set_exception(symbol)
+                a.set_consider_for_analysis(symbol)
             continue  # Next Iteration
         except (ValueError, TypeError):
             d_volume = 0
