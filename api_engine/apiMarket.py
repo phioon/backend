@@ -5,6 +5,7 @@ from rest_framework import generics, permissions
 from rest_framework import status
 from rest_framework.response import Response
 
+from django_engine.functions import generic
 from api_engine import serializers
 from market.models import StockExchange, Asset, D_raw, TechnicalCondition, D_setup, D_setupSummary
 from market.cron import m15, daily, monthly
@@ -21,6 +22,15 @@ __location__ = 'southamerica-east1'
 # __apiBase__ = 'https://backend.phioon.com/market/api/'
 __apiBase__ = 'http://127.0.0.1:8000/api/market/'
 __apiKey__ = 'ycjOzOP5loHPPIbfMW6tA7AreqAlq0z4yqxStxk2B8Iwges581rK5V8kIgg4'
+
+
+# INIT
+def app_init(request, apiKey=None):
+    if apiKey == __apiKey__:
+        generic.app_initiator()
+        return HttpResponse()
+    else:
+        return HttpResponse(status=403)
 
 
 class TechnicalConditionList(generics.ListAPIView):

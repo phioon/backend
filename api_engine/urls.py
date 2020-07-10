@@ -9,6 +9,8 @@ urlpatterns = [
     path('market/d/raw/', apiMarket.D_RawList.as_view(), name='D_Raw data'),
     path('market/d/setups/', apiMarket.D_SetupList.as_view(), name='D_Setup data'),
     path('market/d/setupSummary/', apiMarket.D_SetupSummaryList.as_view(), name='D_SetupSummary data'),
+
+    path('app/initiator/<apiKey>', apiMarket.app_init, name='App Initiator'),
 ]
 
 urlpatterns += [

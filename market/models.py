@@ -44,7 +44,7 @@ class TechnicalCondition(models.Model):
     def __str__(self):
         return self.id
 
-    def updateTable(self):
+    def init(self):
         # # # # # # # # # # MAIN # # # # # # # # # #
         TechnicalCondition.objects.update_or_create(
             id='btl_ema_7__trend_ema_610+',
