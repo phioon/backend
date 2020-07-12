@@ -1,22 +1,10 @@
-from django.contrib.auth.models import User
 from market.models import StockExchange, Asset, TechnicalCondition
 
 
 def app_initiator():
-    user = User.objects.get(username='frontend_api')
-    if user is None:
-        User.objects.create_superuser(
-            username='frontend_api',
-            password='#P1q2w3e4r$Api',
-            email='support.cloud@phioon.com'
-        )
-    user = User.objects.get(username='api')
-    if user is None:
-        User.objects.create_superuser(
-            username='api',
-            password='#P1q2w3e4r$Api',
-            email='support.cloud@phioon.com'
-        )
+    # Before execute this function:
+    #   1. Create superuser api
+    #   2. Create superuser frontend_api
 
     se = StockExchange()
     a = Asset()
