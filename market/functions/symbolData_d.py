@@ -1,6 +1,5 @@
 from market.classes.AlphaVantage import AlphaVantage
-from market.functions import ema, roc, tcPurchase, tcSale
-from datetime import datetime
+from market.functions import ema, roc
 import pandas as pd
 import re
 
@@ -12,13 +11,17 @@ def updateRaw(symbol, lastXrows):
     a = Asset()
     d_raw = D_raw()
 
+    obj_asset = Asset.objects.get(pk=symbol)
+    history = []
     objs = []
-    av = AlphaVantage()
-    if lastXrows == 0 or lastXrows > 100:
-        outputsize = 'full'
-    else:
-        outputsize = 'compact'
-    history = av.get_history_daily(symbol, outputsize)
+
+    if obj_asset.stockExchange.provider_timeseries == 'AV':
+        av = AlphaVantage()
+        if lastXrows == 0 or lastXrows > 100:
+            outputsize = 'full'
+        else:
+            outputsize = 'compact'
+        history = av.get_history_daily(symbol, outputsize)
 
     for x in range(len(history)):
         try:

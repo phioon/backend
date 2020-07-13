@@ -516,11 +516,14 @@ class StockExchange(models.Model):
     se_createdTime = models.DateField(auto_now_add=True)
     se_short = models.CharField(max_length=32, verbose_name='Stock Exchange Short', primary_key=True)
     se_name = models.CharField(max_length=128, verbose_name='Stock Exchange Name', db_index=True)
-    se_startTime = models.TimeField(verbose_name='Usual time the market starts')
-    se_endTime = models.TimeField(verbose_name='Usual time the market ends')
+    se_startTime = models.TimeField(default='10:00:00', verbose_name='Usual time the market starts')
+    se_endTime = models.TimeField(default='18:00:00', verbose_name='Usual time the market ends')
     se_timezone = models.CharField(max_length=32, verbose_name='Timezone (TZ database name)')
     country_code = models.CharField(max_length=8, verbose_name='Alpha-2 Code')
     currency_code = models.CharField(max_length=8, verbose_name='ISO 4217 Code')
+
+    provider_realtime = models.CharField(max_length=8, default='AV')
+    provider_timeseries = models.CharField(max_length=8, default='AV')
 
     def __str__(self):
         return self.se_short
@@ -552,8 +555,6 @@ class StockExchange(models.Model):
                 StockExchange.objects.create(
                     se_short=str(obj['mic']).upper(),
                     se_name=se_name,
-                    se_startTime='10:00:00',
-                    se_endTime='18:00:00',
                     se_timezone=str(obj['timezone']['timezone']),
                     country_code=str(obj['country_code']),
                     currency_code=str(obj['currency']['code'])
@@ -658,17 +659,22 @@ class Asset(models.Model):
 
     # m15
     def updatePrice(self, symbol):
-        av = AlphaVantage()
-        obj_asset = av.get_realtime_data(symbol)
+        obj_asset = Asset.objects.get(pk=symbol)
+        asset_data = {}
 
-        symbol = obj_asset['symbol']
-        lastTradeTime = obj_asset['last_trade_time']
-        cPrice = obj_asset['price']
-        pct_change = obj_asset['pct_change']
+        # Who is the data provider?
+        if obj_asset.stockExchange.provider_realtime == 'AV':
+            av = AlphaVantage()
+            asset_data = av.get_realtime_data(symbol)
+
+        symbol = asset_data['symbol']
+        lastTradeTime = asset_data['last_trade_time']
+        price = asset_data['price']
+        pct_change = asset_data['pct_change']
 
         obj = Asset(asset_symbol=Asset.objects.get(asset_symbol=symbol),
                     asset_lastTradeTime=lastTradeTime,
-                    asset_price=cPrice,
+                    asset_price=price,
                     asset_pct_change=pct_change)
 
         self.updateOrCreateObj(obj)

@@ -25,7 +25,7 @@ __apiKey__ = 'ycjOzOP5loHPPIbfMW6tA7AreqAlq0z4yqxStxk2B8Iwges581rK5V8kIgg4'
 
 
 # INIT
-def app_init(request, apiKey=None):
+def market_init(request, apiKey=None):
     if apiKey == __apiKey__:
         generic.app_initiator()
         return HttpResponse()
@@ -40,6 +40,7 @@ class TechnicalConditionList(generics.ListAPIView):
 
 
 # Class created to add support to a Stock Exchange in a friendly way (by a human).
+# Used only if it's necessary.
 class StockExchangeList(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = serializers.StockExchangeSerializer
@@ -64,9 +65,12 @@ class AssetList(generics.ListAPIView):
     def get_queryset(self):
         stockExchange = self.request.query_params.get('stockExchange')
         assets = self.request.query_params.get('assets')
+        ignore_assets = self.request.query_params.get('ignoreAssets')
 
         if stockExchange:
-            return Asset.objects.filter(stockExchange__se_short__exact=stockExchange)
+            if ignore_assets:
+                ignore_assets = ignore_assets.split(',')
+            return Asset.objects.filter(stockExchange__se_short__exact=stockExchange).exclude(asset_symbol__in=ignore_assets)
         else:
             assets = assets.split(',')
 
@@ -103,7 +107,8 @@ class D_RawList(generics.ListAPIView):
                                     d_datetime__lte=dateTo + ' 23:59:59')
 
 
-# Integration between Backend and Frontend
+# Integration between Backend and Frontend.
+# 'min_success_rate' determines which Setups users will receive as Recommendation.
 min_success_rate = 60
 
 
@@ -175,7 +180,7 @@ def updateAssetList(request, se_short, apiKey=None):
 # Cron Job (Daily on weekdays)
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
-def createDailyTask(request, se_short, lastXrows=5, apiKey=None):
+def runSymbols_D(request, se_short, lastXrows=5, apiKey=None):
     if apiKey == __apiKey__:
         st = time()
         assets = list(Asset.objects.filter(asset_isException=False, stockExchange=se_short)
@@ -200,7 +205,7 @@ def createDailyTask(request, se_short, lastXrows=5, apiKey=None):
 
         duration = str(round(time() - st, 2))
         obj_res = {'message': "Task '%s' for '%s' took %s seconds to complete."
-                              % ('createDailyTask', se_short, duration)}
+                              % ('runSymbols_D', se_short, duration)}
         return Response(obj_res)
     else:
         return Response(status=status.HTTP_403_FORBIDDEN)

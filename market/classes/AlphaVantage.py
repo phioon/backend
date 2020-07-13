@@ -24,8 +24,7 @@ class AlphaVantage:
         return json.loads(r.text)
 
     def json_realtime(self, symbol):
-        symbol = symbol[: symbol.index('.')]
-        symbol += '.SAO'
+        symbol = self.convert_symbol(symbol)
 
         url = self.api_realtime
         url += '&symbol=' + symbol
@@ -43,6 +42,15 @@ class AlphaVantage:
         url += '&apikey=' + self.apiKey
 
         return self.json_from_request(url)
+
+    # Function to convert non-AlphaVantage symbols, to AV symbols.
+    def convert_symbol(self, symbol):
+        se_short = symbol[symbol.index('.') + 1:]
+
+        if se_short == 'BVMF':
+            symbol = str(symbol).replace(se_short, 'SAO')
+
+        return symbol
 
     def get_realtime_data(self, symbol):
         json = self.json_realtime(symbol)

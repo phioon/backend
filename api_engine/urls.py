@@ -10,7 +10,7 @@ urlpatterns = [
     path('market/d/setups/', apiMarket.D_SetupList.as_view(), name='D_Setup data'),
     path('market/d/setupSummary/', apiMarket.D_SetupSummaryList.as_view(), name='D_SetupSummary data'),
 
-    path('app/initiator/<apiKey>', apiMarket.app_init, name='App Initiator'),
+    path('market/initiator/<apiKey>', apiMarket.market_init, name='Market Initiator'),
 ]
 
 urlpatterns += [
@@ -18,7 +18,7 @@ urlpatterns += [
          name='Update Stock Exchanges'),
     path('market/cron/updateAssetList/<se_short>/<apiKey>', apiMarket.updateAssetList,
          name='Update Asset List'),
-    path('market/cron/createDailyTask/<se_short>/<int:lastXrows>/<apiKey>', apiMarket.createDailyTask,
+    path('market/cron/runSymbols/D/<se_short>/<int:lastXrows>/<apiKey>', apiMarket.runSymbols_D,
          name='Create Daily Tasks'),
     path('market/cron/updateAssetPrices/<se_short>/<apiKey>', apiMarket.updateAssetPrices,
          name='Update Asset Prices'),
