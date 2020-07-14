@@ -17,7 +17,7 @@ from google.cloud import tasks_v2
 from concurrent.futures import ThreadPoolExecutor as ThreadPool
 
 __project__ = 'backend-phioon-prd'
-__queue__ = 'market-queue'
+__queue__ = 'provider-av'
 __location__ = 'southamerica-east1'
 # __apiBase__ = 'https://backend.phioon.com/market/api/'
 __apiBase__ = 'http://127.0.0.1:8000/api/market/'
@@ -65,20 +65,21 @@ class AssetList(generics.ListAPIView):
     def get_queryset(self):
         stockExchange = self.request.query_params.get('stockExchange')
         assets = self.request.query_params.get('assets')
-        ignore_assets = self.request.query_params.get('ignoreAssets')
+        cachedAssets = self.request.query_params.get('cachedAssets')
 
         if stockExchange:
-            if ignore_assets:
-                ignore_assets = ignore_assets.split(',')
-            return Asset.objects.filter(stockExchange__se_short__exact=stockExchange).exclude(asset_symbol__in=ignore_assets)
+            if cachedAssets:
+                cachedAssets = cachedAssets.split(',')
+            return Asset.objects.filter(is_considered=True, stockExchange__se_short__exact=stockExchange)\
+                .exclude(asset_symbol__in=cachedAssets)
         else:
             assets = assets.split(',')
 
-            # Log into DB last_access_time. It is used for deciding which Assets will have realtime data stored.
+            # Log into DB last_access_time. It is used for tracking usage of assets
             a = Asset()
             a.frontend_access(assets)
 
-            return Asset.objects.filter(asset_symbol__in=assets)
+            return Asset.objects.filter(is_considered=True, asset_symbol__in=assets)\
 
 
 # Integration between Backend and Frontend
@@ -183,7 +184,7 @@ def updateAssetList(request, se_short, apiKey=None):
 def runSymbols_D(request, se_short, lastXrows=5, apiKey=None):
     if apiKey == __apiKey__:
         st = time()
-        assets = list(Asset.objects.filter(asset_isException=False, stockExchange=se_short)
+        assets = list(Asset.objects.filter(is_considered=True, stockExchange=se_short)
                       .values_list('asset_symbol', flat=True))
         if len(assets) == 0:
             return
@@ -212,19 +213,50 @@ def runSymbols_D(request, se_short, lastXrows=5, apiKey=None):
 
 
 # Cron Job (every 15min on weekdays)
+# Can be called out of business-hours to check non-considered Assets
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
-def updateAssetPrices(request, se_short, apiKey=None):
+def updateAssetPrices(request, se_short, is_considered=True, apiKey=None):
     if apiKey == __apiKey__:
         st = time()
-        m15.updatePrices(se_short)
-        duration = str(round(time() - st, 2))
+        assets = list(Asset.objects.filter(is_considered=is_considered, stockExchange=se_short)
+                      .values_list('asset_symbol', flat=True)
+                      .order_by('-last_access_time'))
+        if len(assets) == 0:
+            return
 
+        client = tasks_v2.CloudTasksClient()
+        parent = client.queue_path(__project__, __location__, __queue__)
+
+        with ThreadPool() as t:
+            for x in range(len(assets)):
+                url = __apiBase__ + 'task/updateAssetPrice/m15/'
+                url += assets[x] + '/'
+                url += __apiKey__
+                task = {
+                    'http_request': {
+                        'http_method': 'GET',
+                        'url': url}}
+                t.submit(client.create_task, parent, task)
+
+        duration = str(round(time() - st, 2))
         obj_res = {'message': "Task '%s' for '%s' took %s seconds to complete."
                               % ('updateAssetPrices', se_short, duration)}
         return Response(obj_res)
     else:
         return Response(status=status.HTTP_403_FORBIDDEN)
+
+# def updateAssetPrices(request, se_short, apiKey=None):
+#     if apiKey == __apiKey__:
+#         st = time()
+#         m15.updatePrices(se_short)
+#         duration = str(round(time() - st, 2))
+#
+#         obj_res = {'message': "Task '%s' for '%s' took %s seconds to complete."
+#                               % ('updateAssetPrices', se_short, duration)}
+#         return Response(obj_res)
+#     else:
+#         return Response(status=status.HTTP_403_FORBIDDEN)
 
 
 # Task Queues

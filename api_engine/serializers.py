@@ -12,7 +12,8 @@ class TechnicalConditionSerializer(serializers.ModelSerializer):
 class StockExchangeSerializer(serializers.ModelSerializer):
     class Meta:
         model = StockExchange
-        fields = '__all__'
+        fields = ['se_short', 'se_name', 'se_startTime', 'se_endTime', 'se_timezone',
+                  'country_code', 'currency_code']
 
 
 class AssetBasicSerializer(serializers.ModelSerializer):
@@ -24,7 +25,8 @@ class AssetBasicSerializer(serializers.ModelSerializer):
 class AssetDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Asset
-        fields = '__all__'
+        fields = ['stockExchange', 'asset_symbol', 'asset_label', 'asset_name', 'asset_price',
+                  'asset_lastTradeTime', 'asset_pct_change']
 
 
 class D_rawBasicSerializer(serializers.ModelSerializer):

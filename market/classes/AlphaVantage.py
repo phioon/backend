@@ -55,6 +55,9 @@ class AlphaVantage:
     def get_realtime_data(self, symbol):
         json = self.json_realtime(symbol)
 
+        if not json['Global Quote']:
+            return json['Global Quote']
+
         pct_change = round(float(json['Global Quote']['10. change percent'].replace('%', '')), 2)
 
         obj = {'symbol': symbol,

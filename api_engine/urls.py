@@ -20,7 +20,7 @@ urlpatterns += [
          name='Update Asset List'),
     path('market/cron/runSymbols/D/<se_short>/<int:lastXrows>/<apiKey>', apiMarket.runSymbols_D,
          name='Create Daily Tasks'),
-    path('market/cron/updateAssetPrices/<se_short>/<apiKey>', apiMarket.updateAssetPrices,
+    path('market/cron/updateAssetPrices/<se_short>/<is_considered>/<apiKey>', apiMarket.updateAssetPrices,
          name='Update Asset Prices'),
 
     path('market/task/updateAssetPrice/m15/<symbol>/<apiKey>', apiMarket.updateAssetPrice,

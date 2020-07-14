@@ -15,6 +15,7 @@ def updateRaw(symbol, lastXrows):
     history = []
     objs = []
 
+    # Who is the data provider?
     if obj_asset.stockExchange.provider_timeseries == 'AV':
         av = AlphaVantage()
         if lastXrows == 0 or lastXrows > 100:
@@ -37,7 +38,7 @@ def updateRaw(symbol, lastXrows):
                       % (symbol, history[x]['Message'], outputsize)
                 log.logIntoDb(log_level='ERROR', log_module='updateRaw', log_msg=msg)
 
-                a.set_consider_for_analysis(symbol)
+                a.set_consideracy_for_analysis(symbol)
             continue  # Next Iteration
         except (ValueError, TypeError):
             d_volume = 0

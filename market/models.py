@@ -564,7 +564,7 @@ class StockExchange(models.Model):
 class Asset(models.Model):
     created_time = models.DateField(auto_now_add=True)
     modified_time = models.DateField(auto_now=True)
-    last_access_time = models.DateField(default='2001-01-01')
+    last_access_time = models.DateField(default='2001-01-01', db_index=True)
 
     stockExchange = models.ForeignKey(StockExchange, related_name='assets', on_delete=models.CASCADE)
 
@@ -572,14 +572,14 @@ class Asset(models.Model):
     asset_label = models.CharField(max_length=32)
     asset_name = models.CharField(max_length=128)
 
-    asset_lastTradeTime = models.CharField(max_length=32, null=True, db_index=True)
-
+    asset_lastTradeTime = models.CharField(max_length=32, null=True)
     asset_price = models.FloatField(null=True)
     asset_pct_change = models.FloatField(null=True)
-
-    consider_for_analysis = models.BooleanField(default=False)
     asset_volatility = models.FloatField(null=True, verbose_name='Volatility percentage over last 10 days.')
     asset_volume_avg = models.IntegerField(null=True, verbose_name='Volume average over last 10 days.')
+
+    is_considered = models.BooleanField(default=False, verbose_name='Is it considered in the entire App/frontend?')
+    is_considered_for_analysis = models.BooleanField(default=False, verbose_name='Is it considered in Setup classes?')
 
     def __str__(self):
         return self.asset_symbol
@@ -667,17 +667,14 @@ class Asset(models.Model):
             av = AlphaVantage()
             asset_data = av.get_realtime_data(symbol)
 
-        symbol = asset_data['symbol']
-        lastTradeTime = asset_data['last_trade_time']
-        price = asset_data['price']
-        pct_change = asset_data['pct_change']
+        if asset_data:
+            obj = Asset(asset_symbol=Asset.objects.get(asset_symbol=symbol),
+                        asset_lastTradeTime=asset_data['last_trade_time'],
+                        asset_price=asset_data['price'],
+                        asset_pct_change=asset_data['pct_change'],
+                        is_considered=True)
 
-        obj = Asset(asset_symbol=Asset.objects.get(asset_symbol=symbol),
-                    asset_lastTradeTime=lastTradeTime,
-                    asset_price=price,
-                    asset_pct_change=pct_change)
-
-        self.updateOrCreateObj(obj)
+            self.updateOrCreateObj(obj)
 
     # D_Raw.updateAsset calls it every day
     def updateStats(self, symbol):
@@ -741,16 +738,17 @@ class Asset(models.Model):
         # ---------------------
 
         if volAvg < 10000 or volatility < 1.00:
-            self.set_consider_for_analysis(symbol, False)
-        elif asset.consider_for_analysis is False:       # It will set to False only if it's True now.
-            self.set_consider_for_analysis(symbol, True)
+            self.set_consideracy_for_analysis(symbol, False)
+        elif asset.is_considered_for_analysis is False:       # It will set to False only if it's True now.
+            self.set_consideracy_for_analysis(symbol, True)
 
     def updateOrCreateObj(self, obj):
         if obj.asset_price is not None:
             Asset.objects.update_or_create(asset_symbol=obj.asset_symbol,
                                            defaults={'asset_price': obj.asset_price,
                                                      'asset_pct_change': obj.asset_pct_change,
-                                                     'asset_lastTradeTime': obj.asset_lastTradeTime})
+                                                     'asset_lastTradeTime': obj.asset_lastTradeTime,
+                                                     'is_considered': obj.is_considered})
 
         elif obj.asset_volatility is not None:
             Asset.objects.update_or_create(asset_symbol=obj.asset_symbol,
@@ -760,10 +758,15 @@ class Asset(models.Model):
             Asset.objects.update_or_create(asset_symbol=obj.asset_symbol,
                                            defaults={'asset_volume_avg': obj.asset_volume_avg})
 
-    def set_consider_for_analysis(self, symbol, value=True):
+    def set_consideracy(self, symbol, value=True):
         Asset.objects.update_or_create(
             asset_symbol=symbol,
-            defaults={'consider_for_analysis': value})
+            defaults={'is_considered': value})
+
+    def set_consideracy_for_analysis(self, symbol, value=True):
+        Asset.objects.update_or_create(
+            asset_symbol=symbol,
+            defaults={'is_considered_for_analysis': value})
 
 
 class D_raw(models.Model):
@@ -781,9 +784,11 @@ class D_raw(models.Model):
 
     def updateAsset(self, symbol, lastXrows=5):
         symbol = symbol.upper()
+        a_obj = Asset.objects.get(pk=symbol)
 
-        symbolData_d.updateRaw(symbol=symbol, lastXrows=lastXrows)
-        self.updateDependencies(symbol, lastXrows=lastXrows)
+        if a_obj.is_considered:
+            symbolData_d.updateRaw(symbol=symbol, lastXrows=lastXrows)
+            self.updateDependencies(symbol, lastXrows=lastXrows)
 
     def updateDependencies(self, symbol, lastXrows):
         a = Asset()
@@ -1047,7 +1052,7 @@ class D_setup(models.Model):
     def updateAsset(self, symbol, lastXrows=0):
         asset = Asset.objects.get(pk=symbol)
 
-        if asset.consider_for_analysis:
+        if asset.is_considered_for_analysis:
             symbolData_d.updateSetup(symbol=symbol, lastXrows=lastXrows)
             self.updateDependencies(symbol=symbol)
 

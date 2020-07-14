@@ -11,7 +11,7 @@ def updatePrices(se_short):
     today = datetime.today().date()
     a_month_ago = today - timedelta(days=30)
 
-    assets = Asset.objects.filter(last_access_time__gte=a_month_ago)
+    assets = Asset.objects.filter(is_considered=True, last_access_time__gte=a_month_ago)
     for a in assets:
         a.updatePrice(a.asset_symbol)
 
