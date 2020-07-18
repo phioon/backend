@@ -16,11 +16,11 @@ from time import time
 from google.cloud import tasks_v2
 from concurrent.futures import ThreadPoolExecutor as ThreadPool
 
-__project__ = 'backend-phioon-prd'
+__project__ = 'phioon'
 __queue__ = 'provider-av'
 __location__ = 'southamerica-east1'
-# __apiBase__ = 'https://backend.phioon.com/market/api/'
-__apiBase__ = 'http://127.0.0.1:8000/api/market/'
+__apiBase__ = 'https://backend.phioon.com/api/market/'
+# __apiBase__ = 'http://127.0.0.1:8000/api/market/'
 __apiKey__ = 'ycjOzOP5loHPPIbfMW6tA7AreqAlq0z4yqxStxk2B8Iwges581rK5V8kIgg4'
 
 
@@ -70,8 +70,10 @@ class AssetList(generics.ListAPIView):
         if stockExchange:
             if cachedAssets:
                 cachedAssets = cachedAssets.split(',')
-            return Asset.objects.filter(is_considered=True, stockExchange__se_short__exact=stockExchange)\
-                .exclude(asset_symbol__in=cachedAssets)
+                return Asset.objects.filter(is_considered=True, stockExchange__se_short__exact=stockExchange)\
+                    .exclude(asset_symbol__in=cachedAssets)
+            else:
+                return Asset.objects.filter(is_considered=True, stockExchange__se_short__exact=stockExchange)
         else:
             assets = assets.split(',')
 
@@ -245,18 +247,6 @@ def updateAssetPrices(request, se_short, is_considered=True, apiKey=None):
         return Response(obj_res)
     else:
         return Response(status=status.HTTP_403_FORBIDDEN)
-
-# def updateAssetPrices(request, se_short, apiKey=None):
-#     if apiKey == __apiKey__:
-#         st = time()
-#         m15.updatePrices(se_short)
-#         duration = str(round(time() - st, 2))
-#
-#         obj_res = {'message': "Task '%s' for '%s' took %s seconds to complete."
-#                               % ('updateAssetPrices', se_short, duration)}
-#         return Response(obj_res)
-#     else:
-#         return Response(status=status.HTTP_403_FORBIDDEN)
 
 
 # Task Queues
