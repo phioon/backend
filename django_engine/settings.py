@@ -86,7 +86,7 @@ if os.getenv('GAE_APPLICATION', None):
     }
     # SECURITY WARNING: don't run with debug turned on in production!
     DEBUG = False
-elif '/prd/' in os.getcwd() or '\\prd\\' in os.getcwd():
+else:
     # Running locally so connect to either a local Postgres instance or connect to
     # Cloud SQL via the proxy. To start the proxy via command line:
     #
@@ -97,24 +97,11 @@ elif '/prd/' in os.getcwd() or '\\prd\\' in os.getcwd():
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
             'HOST': '127.0.0.1',
-            'PORT': '5433',
+            'PORT': '5432',  # DEV database
+            # 'PORT': '5433,            # PRD database
             'USER': 'backend_prd',
             'NAME': 'backend_prd',
             'PASSWORD': '#P1q2w3e4r$Infra',
-        }
-    }
-    # SECURITY WARNING: don't run with debug turned on in production!
-    DEBUG = True
-elif '/dev/' in os.getcwd() or '\\dev\\' in os.getcwd():
-    # Running locally
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'HOST': '127.0.0.1',
-            'PORT': '5432',
-            'USER': 'ta_dev',
-            'NAME': 'ta_dev',
-            'PASSWORD': '#P1q2w3e4r$Infr@',
         }
     }
     # SECURITY WARNING: don't run with debug turned on in production!
