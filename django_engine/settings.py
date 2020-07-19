@@ -1,9 +1,7 @@
 import os
 
-# Build paths inside the project like this: os.path.join(BASE_DIR, ...)
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-# P H I O O N Variables
+# P H I O O N
+# Variables
 API_KEY = 'ycjOzOP5loHPPIbfMW6tA7AreqAlq0z4yqxStxk2B8Iwges581rK5V8kIgg4'
 DB_DEFAULT = {
     'ENGINE': 'django.db.backends.postgresql',
@@ -20,20 +18,32 @@ GAE_PROVIDER_QUEUES = {
 }
 MARKET_API_BASE = 'https://backend.phioon.com/api/market/'
 
-# Where to connect to? It's only used for PRD. If you want to access PRD database
 if os.getenv('GAE_APPLICATION', None):
-    ALLOWED_HOSTS = ['app.phioon.com']
+    # [PRD] environment
     DEBUG = False
-    DB_DEFAULT['DB_HOST'] = '/cloudsql/phioon:southamerica-east1:phioon-pgsql'
+    ALLOWED_HOSTS = ['127.0.0.1', 'app.phioon.com']
+
+    DB_DEFAULT['HOST'] = '/cloudsql/phioon:southamerica-east1:phioon-pgsql'
 else:
-    ALLOWED_HOSTS = ['127.0.0.1']
+    # [DEV] environment
     DEBUG = True
+    ALLOWED_HOSTS = ['127.0.0.1']
+    ACCESS_PRD_DB = False  # Set 'True' to access PRD data (remember to turn the proxy on)
+
     DB_DEFAULT['HOST'] = '127.0.0.1'
-    DB_DEFAULT['PORT'] = '5433'
+
+    if ACCESS_PRD_DB:
+        # [PRD] Database (remember to turn the proxy on)
+        DB_DEFAULT['PORT'] = '5433'
+    else:
+        # [DEV] Database
+        DB_DEFAULT['PORT'] = '5432'
+        DB_DEFAULT['NAME'] = 'backend_dev'
+        DB_DEFAULT['USER'] = 'backend_dev'
 # ----------
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/3.0/howto/deployment/checklist/
+# Build paths inside the project like this: os.path.join(BASE_DIR, ...)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = '!#a_bkzl0q6-@nine7zzm*lp&o149+vi9z=f)f8+g7xq_y7d)n'
