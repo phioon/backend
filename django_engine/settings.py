@@ -76,8 +76,7 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'HOST': '127.0.0.1',
-        'PORT': '5432',  # DEV database
-        # 'PORT': '5433,            # PRD database
+        'PORT': '5432',
         'USER': 'backend_dev',
         'NAME': 'backend_dev',
         'PASSWORD': '#P1q2w3e4r$Infra',
