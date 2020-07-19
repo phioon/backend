@@ -21,13 +21,11 @@ MARKET_API_BASE = 'https://backend.phioon.com/api/market/'
 if os.getenv('GAE_APPLICATION', None):
     # [PRD] environment
     DEBUG = False
-    ALLOWED_HOSTS = ['127.0.0.1', 'app.phioon.com']
 
     DB_DEFAULT['HOST'] = '/cloudsql/phioon:southamerica-east1:phioon-pgsql'
 else:
     # [DEV] environment
     DEBUG = True
-    ALLOWED_HOSTS = ['127.0.0.1']
     ACCESS_PRD_DB = False  # Set 'True' to access PRD data (remember to turn the proxy on)
 
     DB_DEFAULT['HOST'] = '127.0.0.1'
@@ -41,6 +39,8 @@ else:
         DB_DEFAULT['NAME'] = 'backend_dev'
         DB_DEFAULT['USER'] = 'backend_dev'
 # ----------
+
+ALLOWED_HOSTS = ['*']
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
