@@ -14,6 +14,7 @@ DB_DEFAULT = {
     'NAME': 'frontend_dev',
     'PASSWORD': '#P1q2w3e4r$Infra',
 }
+TEST = 'ABC'
 
 if os.getenv('GAE_APPLICATION', None):
     BACKEND_HOSTNAME = 'https://backend.phioon.com'
