@@ -20,9 +20,7 @@ __project__ = 'phioon'
 __queue__ = 'provider-av'
 __location__ = 'southamerica-east1'
 __apiBase__ = 'https://backend.phioon.com/api/market/'
-# __apiBase__ = 'http://127.0.0.1:8000/api/market/'
 __apiKey__ = 'ycjOzOP5loHPPIbfMW6tA7AreqAlq0z4yqxStxk2B8Iwges581rK5V8kIgg4'
-
 
 # INIT
 def market_init(request, apiKey=None):
