@@ -72,40 +72,19 @@ WSGI_APPLICATION = 'django_engine.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/3.0/ref/settings/#databases
 # [START db_setup]
-if os.getenv('GAE_APPLICATION', None):
-    # Running on production App Engine, so connect to Google Cloud SQL using
-    # the unix socket at /cloudsql/<your-cloudsql-connection string>
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'HOST': '/cloudsql/phioon:southamerica-east1:phioon-pgsql',
-            'USER': 'backend_prd',
-            'NAME': 'backend_prd',
-            'PASSWORD': '#P1q2w3e4r$Infra',
-        }
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'HOST': '127.0.0.1',
+        'PORT': '5432',  # DEV database
+        # 'PORT': '5433,            # PRD database
+        'USER': 'backend_dev',
+        'NAME': 'backend_dev',
+        'PASSWORD': '#P1q2w3e4r$Infra',
     }
-    # SECURITY WARNING: don't run with debug turned on in production!
-    DEBUG = False
-else:
-    # Running locally so connect to either a local Postgres instance or connect to
-    # Cloud SQL via the proxy. To start the proxy via command line:
-    #
-    #     $ cloud_sql_proxy -instances=[INSTANCE_CONNECTION_NAME]=tcp:5433
-    #
-    # See https://cloud.google.com/sql/docs/mysql-connect-proxy
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'HOST': '127.0.0.1',
-            'PORT': '5432',  # DEV database
-            # 'PORT': '5433,            # PRD database
-            'USER': 'backend_prd',
-            'NAME': 'backend_prd',
-            'PASSWORD': '#P1q2w3e4r$Infra',
-        }
-    }
-    # SECURITY WARNING: don't run with debug turned on in production!
-    DEBUG = True
+}
+# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = True
 # [END db_setup]
 
 
