@@ -6,6 +6,7 @@ from rest_framework import status
 from rest_framework.response import Response
 
 from django_engine.functions import generic
+from django_engine import settings
 from api_engine import serializers
 from market.models import StockExchange, Asset, D_raw, TechnicalCondition, D_setup, D_setupSummary
 from market.cron import m15, daily, monthly
@@ -16,15 +17,10 @@ from time import time
 from google.cloud import tasks_v2
 from concurrent.futures import ThreadPoolExecutor as ThreadPool
 
-__project__ = 'phioon'
-__queue__ = 'provider-av'
-__location__ = 'southamerica-east1'
-__apiBase__ = 'https://backend.phioon.com/api/market/'
-__apiKey__ = 'ycjOzOP5loHPPIbfMW6tA7AreqAlq0z4yqxStxk2B8Iwges581rK5V8kIgg4'
 
 # INIT
 def market_init(request, apiKey=None):
-    if apiKey == __apiKey__:
+    if apiKey == settings.API_KEY:
         generic.app_initiator()
         return HttpResponse()
     else:
@@ -152,7 +148,7 @@ class D_SetupSummaryList(generics.ListAPIView):
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
 def updateStockExchangeList(request, apiKey=None):
-    if apiKey == __apiKey__:
+    if apiKey == settings.API_KEY:
         st = time()
         monthly.updateStockExchangeData()
         duration = str(round(time() - st, 2))
@@ -167,7 +163,7 @@ def updateStockExchangeList(request, apiKey=None):
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
 def updateAssetList(request, se_short, apiKey=None):
-    if apiKey == __apiKey__:
+    if apiKey == settings.API_KEY:
         st = time()
         monthly.updateAssetData(se_short=se_short)
         duration = str(round(time() - st, 2))
@@ -182,7 +178,7 @@ def updateAssetList(request, se_short, apiKey=None):
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
 def runSymbols_D(request, se_short, lastXrows=5, apiKey=None):
-    if apiKey == __apiKey__:
+    if apiKey == settings.API_KEY:
         st = time()
         assets = list(Asset.objects.filter(is_considered=True, stockExchange=se_short)
                       .values_list('asset_symbol', flat=True))
@@ -190,14 +186,16 @@ def runSymbols_D(request, se_short, lastXrows=5, apiKey=None):
             return
 
         client = tasks_v2.CloudTasksClient()
-        parent = client.queue_path(__project__, __location__, __queue__)
+        parent = client.queue_path(settings.GAE_PROJECT,
+                                   settings.GAE_PROVIDER_QUEUES['alpha_vantage']['location'],
+                                   settings.GAE_PROVIDER_QUEUES['alpha_vantage']['name'])
 
         with ThreadPool() as t:
             for x in range(len(assets)):
-                url = __apiBase__ + 'task/runSymbol/D/'
+                url = settings.MARKET_API_BASE + 'task/runSymbol/D/'
                 url += assets[x] + '/'
                 url += str(lastXrows) + '/'
-                url += __apiKey__
+                url += settings.API_KEY
                 task = {
                     'http_request': {
                         'http_method': 'GET',
@@ -217,7 +215,7 @@ def runSymbols_D(request, se_short, lastXrows=5, apiKey=None):
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
 def updateAssetPrices(request, se_short, is_considered=True, apiKey=None):
-    if apiKey == __apiKey__:
+    if apiKey == settings.API_KEY:
         st = time()
         assets = list(Asset.objects.filter(is_considered=is_considered, stockExchange=se_short)
                       .values_list('asset_symbol', flat=True)
@@ -226,13 +224,15 @@ def updateAssetPrices(request, se_short, is_considered=True, apiKey=None):
             return
 
         client = tasks_v2.CloudTasksClient()
-        parent = client.queue_path(__project__, __location__, __queue__)
+        parent = client.queue_path(settings.GAE_PROJECT,
+                                   settings.GAE_PROVIDER_QUEUES['alpha_vantage']['location'],
+                                   settings.GAE_PROVIDER_QUEUES['alpha_vantage']['name'])
 
         with ThreadPool() as t:
             for x in range(len(assets)):
-                url = __apiBase__ + 'task/updateAssetPrice/m15/'
+                url = settings.MARKET_API_BASE + 'task/updateAssetPrice/m15/'
                 url += assets[x] + '/'
-                url += __apiKey__
+                url += settings.API_KEY
                 task = {
                     'http_request': {
                         'http_method': 'GET',
@@ -251,7 +251,7 @@ def updateAssetPrices(request, se_short, is_considered=True, apiKey=None):
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
 def runSymbol_D(request, symbol, lastXrows=5, apiKey=None):
-    if apiKey == __apiKey__:
+    if apiKey == settings.API_KEY:
         daily.updateRawData(symbol=symbol, lastXrows=lastXrows)
 
         obj_res = {'message': "success"}
@@ -263,7 +263,7 @@ def runSymbol_D(request, symbol, lastXrows=5, apiKey=None):
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
 def updateAssetPrice(request, symbol, apiKey=None):
-    if apiKey == __apiKey__:
+    if apiKey == settings.API_KEY:
         m15.updatePrice(symbol)
 
         obj_res = {'message': "success."}
