@@ -40,9 +40,7 @@ class StockExchangeList(generics.ListCreateAPIView):
     serializer_class = serializers.StockExchangeSerializer
 
     def get_queryset(self):
-        seList = ['BVMF']
-
-        return StockExchange.objects.filter(pk__in=seList)
+        return StockExchange.objects.filter(pk__in=settings.MARKET_SE_LIST)
 
 
 # Integration between Backend and Frontend
@@ -59,15 +57,9 @@ class AssetList(generics.ListAPIView):
     def get_queryset(self):
         stockExchange = self.request.query_params.get('stockExchange')
         assets = self.request.query_params.get('assets')
-        cachedAssets = self.request.query_params.get('cachedAssets')
 
         if stockExchange:
-            if cachedAssets:
-                cachedAssets = cachedAssets.split(',')
-                return Asset.objects.filter(is_considered=True, stockExchange__se_short__exact=stockExchange)\
-                    .exclude(asset_symbol__in=cachedAssets)
-            else:
-                return Asset.objects.filter(is_considered=True, stockExchange__se_short__exact=stockExchange)
+            return Asset.objects.filter(is_considered=True, stockExchange__se_short__exact=stockExchange)
         else:
             assets = assets.split(',')
 

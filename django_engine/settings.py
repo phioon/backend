@@ -17,6 +17,7 @@ GAE_PROVIDER_QUEUES = {
     }
 }
 MARKET_API_BASE = 'https://backend.phioon.com/api/market/'
+MARKET_SE_LIST = ['BVMF']
 
 if os.getenv('GAE_APPLICATION', None):
     # [PRD] environment

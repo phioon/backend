@@ -10,10 +10,15 @@ class TechnicalConditionSerializer(serializers.ModelSerializer):
 
 
 class StockExchangeSerializer(serializers.ModelSerializer):
+    assets = serializers.SerializerMethodField()
+
     class Meta:
         model = StockExchange
         fields = ['se_short', 'se_name', 'se_startTime', 'se_endTime', 'se_timezone',
-                  'country_code', 'currency_code']
+                  'country_code', 'currency_code', 'assets']
+
+    def get_assets(self, obj):
+        return Asset.objects.filter(stockExchange=obj, is_considered=True).values_list('pk', flat=True)
 
 
 class AssetBasicSerializer(serializers.ModelSerializer):
