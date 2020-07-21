@@ -1,11 +1,3 @@
-# Stock Exchanges:
-#  . http://api.marketstack.com/v1/exchanges/?access_key=<apiKey>&limit=1000
-# Assets:
-#   . http://api.marketstack.com/v1/exchanges/<stockExchange>/tickers?access_key=<apiKey>&limit=1000
-# EOD Data:
-#   . http://api.marketstack.com/v1/tickers/<asset_symbol>/eod/?access_key=<apiKey>&limit=1000
-# Realtime:
-#   . http://api.marketstack.com/v1/intraday/latest/?access_key=<apiKey>&exchange=<stockExchange>&limit=1000
 
 import json
 import requests

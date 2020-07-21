@@ -3,7 +3,7 @@
 
 import json
 import requests
-from ..functions import utils
+from market.functions import utils
 
 
 class AlphaVantage:

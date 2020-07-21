@@ -1,4 +1,4 @@
-from market.classes.AlphaVantage import AlphaVantage
+from market.providers.AlphaVantage import AlphaVantage
 from market.functions import ema, roc
 import pandas as pd
 import re
@@ -277,7 +277,7 @@ def updateRoc(symbol, lastXrows):
 
 
 def updateVar(symbol, lastXrows):
-    from market.models import Logging, D_raw, D_var, D_ema, D_pvpc
+    from market.models import Logging, D_raw, D_var, D_ema
 
     l = Logging()
     d_raw = D_raw.objects.only('asset_datetime')

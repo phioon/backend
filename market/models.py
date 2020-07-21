@@ -1,5 +1,5 @@
-from .classes.MarketStack import MarketStack
-from .classes.AlphaVantage import AlphaVantage
+from market.providers.MarketStack import MarketStack
+from market.providers.AlphaVantage import AlphaVantage
 from .functions import symbolData_d, utils as phioon_utils
 from datetime import datetime, timedelta
 from django.db import models
