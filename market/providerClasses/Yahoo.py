@@ -1,9 +1,12 @@
+# Profile
+#   Includes: real-time (regularMarketPrice), change_pct (regularMarketChangePercent)
+#   . https://apidojo-yahoo-finance-v1.p.rapidapi.com/stock/v2/get-profile?symbol=<apiKey>
 
 import json
 import requests
 
 
-class MarketStack:
+class Yahoo:
     api_stockExchanges = 'http://api.marketstack.com/v1/exchanges/<se_short>?access_key=<apiKey>&limit=<limit>'
     api_assets = 'http://api.marketstack.com/v1/exchanges/<se_short>/tickers?access_key=<apiKey>&limit=<limit>'
     api_eod = 'http://api.marketstack.com/v1/tickers/<asset_symbol>/eod?access_key=<apiKey>&limit=<limit>'
@@ -11,18 +14,6 @@ class MarketStack:
 
     api_key = '98e83dc6353ef87710b8b34e8197dedc'
     limit = '1000'
-
-    def json_from_request(self, api):
-        try:
-            r = requests.get(api)
-        except requests.exceptions.Timeout:
-            r = requests.get(api)  # Try again
-        except requests.exceptions.RequestException as ex:
-            return {}
-            # log = Logging()
-            # log.logIntoDb(log_level='ERROR', log_module='json_from_request', log_msg=ex.response)
-
-        return json.loads(r.text)
 
     def json_realtime(self, strSymbolList):
         url = self.urlRealtime

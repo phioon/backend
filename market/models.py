@@ -1,5 +1,5 @@
-from market.providers.MarketStack import MarketStack
-from market.providers.AlphaVantage import AlphaVantage
+from market.providerClasses.AlphaVantage import AlphaVantage
+from market import managers, providerClasses
 from .functions import symbolData_d, utils as phioon_utils
 from datetime import datetime, timedelta
 from django.db import models
@@ -11,23 +11,23 @@ __dateTo__ = str(datetime.today().date())
 
 
 class Logging(models.Model):
-    log_datetime = models.DateTimeField(auto_now=True)
-    log_level = models.CharField(max_length=8)
-    log_module = models.CharField(max_length=64)
-    log_message = models.TextField(max_length=2048)
-    log_created_by = models.CharField(max_length=32)
+    timestamp = models.DateTimeField(auto_now=True)
+    level = models.CharField(max_length=8)
+    context = models.CharField(max_length=64)
+    message = models.TextField(max_length=2048)
+    created_by = models.CharField(max_length=32)
 
     def __str__(self):
-        return self.log_level
+        return self.level
 
-    def logIntoDb(self, log_level, log_module, log_msg):
-        log = Logging(log_level=log_level,
-                      log_module=log_module,
-                      log_message=log_msg,
-                      log_created_by='SYSTEM')
+    def log_into_db(self, level, context, message, created_by='SYSTEM'):
+        log = Logging(level=level,
+                      context=context,
+                      message=message,
+                      created_by=created_by)
         log.save()
 
-    def runAging(self):
+    def run_aging(self):
         pass
 
 
@@ -513,52 +513,54 @@ class TechnicalCondition(models.Model):
 
 
 class StockExchange(models.Model):
-    se_createdTime = models.DateField(auto_now_add=True)
+    created_time = models.DateField(auto_now_add=True)
+    modified_time = models.DateField(auto_now=True)
+
     se_short = models.CharField(max_length=32, verbose_name='Stock Exchange Short', primary_key=True)
     se_name = models.CharField(max_length=128, verbose_name='Stock Exchange Name', db_index=True)
+
     se_startTime = models.TimeField(default='10:00:00', verbose_name='Usual time the market starts')
     se_endTime = models.TimeField(default='18:00:00', verbose_name='Usual time the market ends')
     se_timezone = models.CharField(max_length=32, verbose_name='Timezone (TZ database name)')
+
     country_code = models.CharField(max_length=8, verbose_name='Alpha-2 Code')
     currency_code = models.CharField(max_length=8, verbose_name='ISO 4217 Code')
-
-    provider_realtime = models.CharField(max_length=8, default='AV')
-    provider_timeseries = models.CharField(max_length=8, default='AV')
+    website = models.CharField(max_length=128, null=True)
 
     def __str__(self):
         return self.se_short
 
     # On-Demand
-    def update_stock_exchange_list(self, se_short=None):
-        ms = MarketStack()
-        data = ms.get_stock_exchange(se_short)
-
-        se_short_list = list(StockExchange.objects.values_list('se_short', flat=True).distinct())
+    def update_stock_exchange_list(self):
+        provider_manager = managers.ProviderManager()
+        data = provider_manager.get_stock_exchange_list()
 
         for obj in data:
-            se_short = str(obj['mic']).upper()
-            se_name = phioon_utils.remove_special_chars(obj['name'])
-            se_name = se_name.title()
+            StockExchange.objects.update_or_create(
+                se_short=obj['se_short'],
+                defaults={
+                    'se_name': obj['se_name'],
+                    'se_timezone': obj['se_timezone'],
+                    'country_code': obj['country_code'],
+                    'currency_code': obj['currency_code'],
+                    'website': obj['website']
+                })
 
-            if se_short in se_short_list:
-                # Updates it, except se_name
-                StockExchange.objects.update_or_create(
-                    se_short=se_short,
-                    defaults={
-                        'se_timezone': str(obj['timezone']['timezone']),
-                        'country_code': str(obj['country_code']),
-                        'currency_code': str(obj['currency']['code'])
-                    }
-                )
-            else:
-                # Create it
-                StockExchange.objects.create(
-                    se_short=str(obj['mic']).upper(),
-                    se_name=se_name,
-                    se_timezone=str(obj['timezone']['timezone']),
-                    country_code=str(obj['country_code']),
-                    currency_code=str(obj['currency']['code'])
-                )
+    # On-Demand
+    def update_stock_exchange_data(self, se_short):
+        provider_manager = managers.ProviderManager()
+        data = provider_manager.get_stock_exchange_data(se_short=se_short)
+
+        if data:
+            StockExchange.objects.update_or_create(
+                se_short=data['se_short'],
+                defaults={
+                    'se_name': data['se_name'],
+                    'se_timezone': data['se_timezone'],
+                    'country_code': data['country_code'],
+                    'currency_code': data['currency_code'],
+                    'website': data['website']
+                })
 
 
 class Asset(models.Model):
@@ -569,112 +571,64 @@ class Asset(models.Model):
     stockExchange = models.ForeignKey(StockExchange, related_name='assets', on_delete=models.CASCADE)
 
     asset_symbol = models.CharField(max_length=32, primary_key=True)
-    asset_label = models.CharField(max_length=32)
-    asset_name = models.CharField(max_length=128)
 
-    asset_lastTradeTime = models.CharField(max_length=32, null=True)
-    asset_price = models.FloatField(null=True)
-    asset_pct_change = models.FloatField(null=True)
     asset_volatility = models.FloatField(null=True, verbose_name='Volatility percentage over last 10 days.')
     asset_volume_avg = models.IntegerField(null=True, verbose_name='Volume average over last 10 days.')
 
-    is_considered = models.BooleanField(default=False, verbose_name='Is it considered in the entire App/frontend?')
-    is_considered_for_analysis = models.BooleanField(default=False, verbose_name='Is it considered in Setup classes?')
+    is_considered_for_analysis = models.BooleanField(default=False, verbose_name='Is considered for Technical Analysis?')
 
     def __str__(self):
         return self.asset_symbol
 
-    def beautify_asset_name(self, se_short, asset_name):
-        asset_name = phioon_utils.remove_special_chars(asset_name)
-
-        if se_short in ['BVMF']:
-            regex = ' DRN| NM| N1| N2| ON| PN'
-            asset_name = re.sub(regex, '', asset_name)
-
-            regex = 'DRN$|NM$|N1$|N2$|ON$|PN$'
-            asset_name = re.sub(regex, '', asset_name)
-
-        return asset_name.title()
-
-    def is_asset_symbol_an_alias(self, se_short, asset_symbol):
-        if se_short in ['BVMF']:
-            # Brazilian Fractionary Market
-            if asset_symbol.endswith(str('F.' + se_short)):
-                return True
-
-        return False
-
     def frontend_access(self, assets):
         assets = Asset.objects.filter(asset_symbol__in=assets)
         today = datetime.today().date()
-        is_out_to_date = False
+        refresh_access = False
 
         for a in assets:
             if (today - a.last_access_time) >= timedelta(days=30):
                 # If Asset hasn't synchronized for 30 days or more,
                 # it must sync now before return data to frontend
-                is_out_to_date = True
-                self.updatePrice(a.asset_symbol)
+                refresh_access = True
+                realtime = Realtime()
+                realtime.update_realtime_data(a.asset_symbol)
 
             elif (today - a.last_access_time) >= timedelta(days=1):
-                is_out_to_date = True
+                refresh_access = True
 
-        if is_out_to_date:
+        if refresh_access:
             assets.update(last_access_time=today)
 
     # Monthly
     def update_assets_by_stock_exchange(self, se_short):
-        ms = MarketStack()
-        data = ms.get_assets_by_stock_exchange(se_short)
+        provider_manager = managers.ProviderManager()
+        data = provider_manager.get_assets_by_stock_exchange(se_short=se_short)
 
-        asset_symbol_list = list(Asset.objects.values_list('asset_symbol', flat=True).distinct())
+        stockExchange = StockExchange.objects.get(se_short=se_short)
 
         for obj in data:
-            stockExchange = StockExchange.objects.get(se_short=se_short)
-            asset_symbol = str(obj['symbol']).upper()
-            asset_label = asset_symbol[:asset_symbol.rindex('.')]
+            asset_symbol = obj['asset_symbol']
+            asset, created = Asset.objects.get_or_create(asset_symbol=asset_symbol,
+                                                         stockExchange=stockExchange)
 
-            if self.is_asset_symbol_an_alias(se_short, asset_symbol):
-                # Think about it later. Maybe a model AssetLabel
-                continue
+            profile = Profile()
+            update_profile = False
 
-            elif asset_symbol in asset_symbol_list:
-                # Updates it, except asset_name field
-                Asset.objects.update_or_create(
-                    asset_symbol=asset_symbol,
-                    defaults={
-                        'stockExchange': stockExchange,
-                        'asset_label': asset_label
-                    }
-                )
-            else:
-                # Create it
-                asset_name = self.beautify_asset_name(se_short, obj['name'])
-                Asset.objects.create(
-                    stockExchange=stockExchange,
-                    asset_symbol=asset_symbol,
-                    asset_label=asset_label,
-                    asset_name=asset_name
-                )
+            try:
+                # If Profile exists, update it only if timedelta is greater than 25 days.
+                profile_mtime = asset.profile.modified_time
 
-    # m15
-    def updatePrice(self, symbol):
-        obj_asset = Asset.objects.get(pk=symbol)
-        asset_data = {}
+                today = datetime.today().date()
+                delta = today - profile_mtime
 
-        # Who is the data provider?
-        if obj_asset.stockExchange.provider_realtime == 'AV':
-            av = AlphaVantage()
-            asset_data = av.get_realtime_data(symbol)
+                if delta >= timedelta(days=25):
+                    update_profile = True
 
-        if asset_data:
-            obj = Asset(asset_symbol=Asset.objects.get(asset_symbol=symbol),
-                        asset_lastTradeTime=asset_data['last_trade_time'],
-                        asset_price=asset_data['price'],
-                        asset_pct_change=asset_data['pct_change'],
-                        is_considered=True)
+            except Asset.profile.RelatedObjectDoesNotExist:
+                update_profile = True
 
-            self.updateOrCreateObj(obj)
+            if update_profile:
+                profile.update_asset_profile(asset_symbol)
 
     # D_Raw.updateAsset calls it every day
     def updateStats(self, symbol):
@@ -737,20 +691,13 @@ class Asset(models.Model):
         volatility = asset.asset_volatility  # Check 02: Volatility
         # ---------------------
 
-        if volAvg < 10000 or volatility < 1.00:
+        if volAvg < 100000 or volatility < 1.00:
             self.set_consideracy_for_analysis(symbol, False)
         elif asset.is_considered_for_analysis is False:       # It will set to False only if it's True now.
             self.set_consideracy_for_analysis(symbol, True)
 
     def updateOrCreateObj(self, obj):
-        if obj.asset_price is not None:
-            Asset.objects.update_or_create(asset_symbol=obj.asset_symbol,
-                                           defaults={'asset_price': obj.asset_price,
-                                                     'asset_pct_change': obj.asset_pct_change,
-                                                     'asset_lastTradeTime': obj.asset_lastTradeTime,
-                                                     'is_considered': obj.is_considered})
-
-        elif obj.asset_volatility is not None:
+        if obj.asset_volatility is not None:
             Asset.objects.update_or_create(asset_symbol=obj.asset_symbol,
                                            defaults={'asset_volatility': obj.asset_volatility})
 
@@ -758,15 +705,93 @@ class Asset(models.Model):
             Asset.objects.update_or_create(asset_symbol=obj.asset_symbol,
                                            defaults={'asset_volume_avg': obj.asset_volume_avg})
 
-    def set_consideracy(self, symbol, value=True):
-        Asset.objects.update_or_create(
-            asset_symbol=symbol,
-            defaults={'is_considered': value})
-
     def set_consideracy_for_analysis(self, symbol, value=True):
         Asset.objects.update_or_create(
             asset_symbol=symbol,
             defaults={'is_considered_for_analysis': value})
+
+
+class Profile(models.Model):
+    modified_time = models.DateField(auto_now=True)
+
+    asset_symbol = models.OneToOneField(Asset, related_name='profile', on_delete=models.CASCADE)
+    asset_label = models.CharField(max_length=32)
+    asset_name = models.CharField(max_length=128)
+
+    country_code = models.CharField(max_length=8, verbose_name='Alpha-2 Code')
+    sector_id = models.CharField(max_length=64, null=True)
+    sector_name = models.CharField(max_length=64, null=True)
+    website = models.CharField(max_length=128, null=True)
+    business_summary = models.TextField(null=True)
+
+    def __str__(self):
+        return self.asset_symbol
+
+    def update_asset_profile(self, symbol):
+        provider_manager = managers.ProviderManager()
+        data = provider_manager.get_profile_data(asset_symbol=symbol)
+
+        if data:
+            asset = Asset.objects.get(asset_symbol=symbol)
+
+            if not data['country_code']:
+                data['country_code'] = asset.stockExchange.country_code
+
+            obj = Profile(asset_symbol=asset,
+                          asset_label=data['asset_label'],
+                          asset_name=data['asset_name'],
+                          country_code=data['country_code'],
+                          sector_id=data['sector_id'],
+                          sector_name=data['sector_name'],
+                          website=data['website'],
+                          business_summary=data['business_summary'])
+
+            self.updateOrCreateObj(obj)
+
+    def updateOrCreateObj(self, obj):
+        Profile.objects.update_or_create(
+            asset_symbol=obj.asset_symbol,
+            defaults={'asset_label': obj.asset_label,
+                      'asset_name': obj.asset_name,
+                      'country_code': obj.country_code,
+                      'sector_id': obj.sector_id,
+                      'sector_name': obj.sector_name,
+                      'website': obj.website,
+                      'business_summary': obj.business_summary})
+
+
+class Realtime(models.Model):
+    asset_symbol = models.OneToOneField(Asset, related_name='realtime', on_delete=models.CASCADE)
+
+    last_trade_time = models.CharField(max_length=32, db_index=True)
+    open = models.FloatField(null=True)
+    high = models.FloatField(null=True)
+    low = models.FloatField(null=True)
+    price = models.FloatField()
+    volume = models.BigIntegerField(null=True)
+    pct_change = models.FloatField(null=True)
+
+    def __str__(self):
+        return self.asset_symbol
+
+    def update_realtime_data(self, symbol):
+        provider_manager = managers.ProviderManager()
+        data = provider_manager.get_realtime_data(asset_symbol=symbol)
+
+        try:
+            realtime = Realtime.objects.get(asset_symbol=Asset.objects.get(pk=symbol))
+        except Realtime.DoesNotExist:
+            realtime = Realtime(asset_symbol=Asset.objects.get(pk=symbol))
+
+        if data:
+            realtime.last_trade_time = data['last_trade_time']
+            realtime.open = data['open']
+            realtime.high = data['high']
+            realtime.low = data['low']
+            realtime.price = data['price']
+            realtime.volume = data['volume']
+            realtime.pct_change = data['pct_change']
+            realtime.save()
 
 
 class D_raw(models.Model):
@@ -783,12 +808,8 @@ class D_raw(models.Model):
         return self.asset_datetime
 
     def updateAsset(self, symbol, lastXrows=5):
-        symbol = symbol.upper()
-        a_obj = Asset.objects.get(pk=symbol)
-
-        if a_obj.is_considered:
-            symbolData_d.updateRaw(symbol=symbol, lastXrows=lastXrows)
-            self.updateDependencies(symbol, lastXrows=lastXrows)
+        symbolData_d.updateRaw(symbol=symbol, last_x_rows=lastXrows)
+        self.updateDependencies(symbol, lastXrows=lastXrows)
 
     def updateDependencies(self, symbol, lastXrows):
         a = Asset()
@@ -805,7 +826,7 @@ class D_raw(models.Model):
         roc.updateAsset(symbol=symbol, lastXrows=lastXrows)
         var.updateAsset(symbol=symbol, lastXrows=lastXrows)
         tc.updateAsset(symbol=symbol, lastXrows=lastXrows)
-        setup.updateAsset(symbol=symbol, lastXrows=lastXrows)
+        setup.updateAsset(symbol=symbol)
 
     def bulk_create(self, objs):
         D_raw.objects.bulk_create(objs, ignore_conflicts=True)
@@ -1049,11 +1070,11 @@ class D_setup(models.Model):
     def __str__(self):
         return self.asset_datetime
 
-    def updateAsset(self, symbol, lastXrows=0):
+    def updateAsset(self, symbol):
         asset = Asset.objects.get(pk=symbol)
 
         if asset.is_considered_for_analysis:
-            symbolData_d.updateSetup(symbol=symbol, lastXrows=lastXrows)
+            symbolData_d.updateSetup(symbol=symbol)
             self.updateDependencies(symbol=symbol)
 
     def updateDependencies(self, symbol):
