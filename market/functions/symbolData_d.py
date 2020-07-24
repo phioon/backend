@@ -1,60 +1,30 @@
-from market.providers.AlphaVantage import AlphaVantage
+from market import managers
 from market.functions import ema, roc
+from market.functions import utils as phioon_utils
 import pandas as pd
-import re
 
 
-def updateRaw(symbol, lastXrows):
-    from market.models import Logging, Asset, D_raw
+def updateRaw(symbol, last_x_rows):
+    from market.models import Asset, D_raw
 
-    log = Logging()
-    a = Asset()
+    provider_manager = managers.ProviderManager()
+    data = provider_manager.get_eod_data(asset_symbol=symbol, last_x_rows=last_x_rows)
+
     d_raw = D_raw()
-
-    obj_asset = Asset.objects.get(pk=symbol)
-    history = []
     objs = []
 
-    # Who is the data provider?
-    if obj_asset.stockExchange.provider_timeseries == 'AV':
-        av = AlphaVantage()
-        if lastXrows == 0 or lastXrows > 100:
-            outputsize = 'full'
-        else:
-            outputsize = 'compact'
-        history = av.get_history_daily(symbol, outputsize)
-
-    for x in range(len(history)):
-        try:
-            d_dt = history[x]['datetime']
-            d_open = history[x]['open']
-            d_high = history[x]['high']
-            d_low = history[x]['low']
-            d_close = history[x]['close']
-            d_volume = int(history[x]['volume'])
-        except KeyError:
-            if 'Message' in history[x]:
-                msg = '[%s] %s | Inputs={outputsize:%s}' \
-                      % (symbol, history[x]['Message'], outputsize)
-                log.logIntoDb(log_level='ERROR', log_module='updateRaw', log_msg=msg)
-
-                a.set_consideracy_for_analysis(symbol)
-            continue  # Next Iteration
-        except (ValueError, TypeError):
-            d_volume = 0
-
-        obj = D_raw(asset_datetime=str(symbol + '_' + re.sub("[^0-9]", "", d_dt)),
+    for obj in data:
+        objs.append(D_raw(asset_datetime=phioon_utils.get_asset_datetime(symbol, obj['datetime']),
                     asset_symbol=Asset.objects.get(asset_symbol=symbol),
-                    d_datetime=d_dt,
-                    d_open=round(d_open, 2),
-                    d_high=round(d_high, 2),
-                    d_low=round(d_low, 2),
-                    d_close=round(d_close, 2),
-                    d_volume=d_volume)
-        objs.append(obj)
+                    d_datetime=obj['datetime'],
+                    d_open=obj['open'],
+                    d_high=obj['high'],
+                    d_low=obj['low'],
+                    d_close=obj['close'],
+                    d_volume=obj['volume']))
 
-    if lastXrows > 0:
-        d_raw.updateOrCreateObjs(objs[:lastXrows])  # First X Descending
+    if last_x_rows > 0:
+        d_raw.updateOrCreateObjs(objs[:last_x_rows])  # First X Descending
     else:
         d_raw.bulk_create(objs)
 
@@ -213,9 +183,9 @@ def updateRoc(symbol, lastXrows):
                         .order_by('asset_datetime'))
 
     if len(adtList) != len(closeEmaList):
-        l.logIntoDb(log_level='ERROR',
-                    log_module='updateRoc',
-                    log_msg='[%s] Not ready: len[adtList] = %i and len(closeEmaList) = %i'
+        l.log_into_db(level='error',
+                      context='updateRoc',
+                      message='[%s] Not ready: len[adtList] = %i and len(closeEmaList) = %i'
                             % (symbol, len(adtList), len(closeEmaList)))
         return
 
@@ -296,9 +266,9 @@ def updateVar(symbol, lastXrows):
                         .order_by('asset_datetime'))
 
     if len(adtList) != len(closeEmaList):
-        l.logIntoDb(log_level='ERROR',
-                    log_module='updateVar',
-                    log_msg='[%s] Not ready: len[adtList] = %i and len(closeEmaList) = %i'
+        l.log_into_db(level='error',
+                      context='updateVar',
+                      message='[%s] Not ready: len[adtList] = %i and len(closeEmaList) = %i'
                             % (symbol, len(adtList), len(closeEmaList)))
         return
 
@@ -324,251 +294,6 @@ def updateVar(symbol, lastXrows):
         dVar.updateOrCreateObjs(objs[-lastXrows:])  # Last X Ascending
     else:
         dVar.bulk_create(objs)
-
-"""
-def D_mpUpdateRange(symbol, lastXrows):
-    # Needed Settings for Multiprocessing usage
-    # import django
-    # django.setup()
-    # ---------------------
-    from market.models import Logging, D_raw, D_range, D_var
-
-    l = Logging()
-    d_raw = D_raw.objects.only('asset_datetime')
-    dRange = D_range()
-    objs = []
-
-    # Ordered by 'd_datetime' ASCENDENT
-    adtList = list(D_raw.objects.filter(asset_symbol=symbol)
-                   .exclude(d_close=0)
-                   .values_list('asset_datetime', flat=True)
-                   .order_by('d_datetime'))
-
-    # Respect the order: [0]=varEma1734, [1]=varEma3472, [2]=varEma72144...
-    closeVarEmaList = list(D_var.objects.filter(d_raw_id__asset_symbol__exact=symbol)
-                           .exclude(d_raw_id__d_close=0)
-                           .values_list('d_var_emaclose1734', 'd_var_emaclose3472', 'd_var_emaclose72144',
-                                        'd_var_emaclose144305', 'd_var_emaclose305610', 'd_var_emaclose6101292',
-                                        'd_var_emaclose12922584')
-                           .order_by('asset_datetime'))
-
-    if len(adtList) != len(closeVarEmaList):
-        l.logIntoDb(log_level='ERROR',
-                    log_module='D_mpUpdateRange',
-                    log_msg='[%s] Not ready: len[adtList] = %i and len(closeVarEmaList) = %i'
-                            % (symbol, len(adtList), len(closeVarEmaList)))
-        return
-
-    for x in range(len(adtList)):
-        adt = adtList[x]
-        varEma1734 = closeVarEmaList[x][0]
-        varEma3472 = closeVarEmaList[x][1]
-        varEma72144 = closeVarEmaList[x][2]
-        varEma144305 = closeVarEmaList[x][3]
-        varEma305610 = closeVarEmaList[x][4]
-        varEma6101292 = closeVarEmaList[x][5]
-        varEma12922584 = closeVarEmaList[x][6]
-        range_up72 = range_up144 = range_up305 = range_up610 = range_up1292 = range_up2584 = False
-        range_down72 = range_down144 = range_down305 = range_down610 = range_down1292 = range_down2584 = False
-
-        # # # # # # # # # # UP # # # # # # # # # #
-        if (varEma12922584 is not None and varEma12922584 >= 0 and
-                varEma6101292 is not None and varEma6101292 >= 0 and
-                varEma305610 is not None and varEma305610 >= 0 and
-                varEma144305 is not None and varEma144305 >= -0.618 and
-                varEma72144 is not None and varEma72144 >= -0.382 and
-                varEma3472 is not None and varEma3472 > 0 and varEma1734 is not None and varEma1734 > 0):
-            range_up2584 = True
-
-        if (varEma6101292 is not None and varEma6101292 >= 0 and
-                varEma305610 is not None and varEma305610 >= 0 and
-                varEma144305 is not None and varEma144305 >= -0.618 and
-                varEma72144 is not None and varEma72144 >= -0.382 and
-                varEma3472 is not None and varEma3472 > 0 and varEma1734 is not None and varEma1734 > 0):
-            range_up1292 = True
-
-        if (varEma305610 is not None and varEma305610 >= 0 and
-                varEma144305 is not None and varEma144305 >= -0.618 and
-                varEma72144 is not None and varEma72144 >= -0.382 and
-                varEma3472 is not None and varEma3472 > 0 and varEma1734 is not None and varEma1734 > 0):
-            range_up610 = True
-
-        if (varEma144305 is not None and varEma144305 >= -0.618 and
-                varEma72144 is not None and varEma72144 >= -0.382 and
-                varEma3472 is not None and varEma3472 > 0 and varEma1734 is not None and varEma1734 > 0):
-            range_up305 = True
-
-        if (varEma72144 is not None and varEma72144 >= -0.382 and
-                varEma3472 is not None and varEma3472 > 0 and varEma1734 is not None and varEma1734 > 0):
-            range_up144 = True
-
-        if varEma3472 is not None and varEma3472 > 0 and varEma1734 is not None and varEma1734 > 0:
-            range_up72 = True
-
-        # # # # # # # # # # DOWN # # # # # # # # # #
-        if (varEma12922584 is not None and varEma12922584 <= 0 and
-                varEma6101292 is not None and varEma6101292 <= 0 and
-                varEma305610 is not None and varEma305610 <= 0 and
-                varEma144305 is not None and varEma144305 <= 0.618 and
-                varEma72144 is not None and varEma72144 <= 0.382 and
-                varEma3472 is not None and varEma3472 < 0 and varEma1734 is not None and varEma1734 < 0):
-            range_down2584 = True
-
-        if (varEma6101292 is not None and varEma6101292 <= 0 and
-                varEma305610 is not None and varEma305610 <= 0 and
-                varEma144305 is not None and varEma144305 <= 0.618 and
-                varEma72144 is not None and varEma72144 <= 0.382 and
-                varEma3472 is not None and varEma3472 < 0 and varEma1734 is not None and varEma1734 < 0):
-            range_down1292 = True
-
-        if (varEma305610 is not None and varEma305610 <= 0 and
-                varEma144305 is not None and varEma144305 <= 0.618 and
-                varEma72144 is not None and varEma72144 <= 0.382 and
-                varEma3472 is not None and varEma3472 < 0 and varEma1734 is not None and varEma1734 < 0):
-            range_down610 = True
-
-        if (varEma144305 is not None and varEma144305 <= 0.618 and
-                varEma72144 is not None and varEma72144 <= 0.382 and
-                varEma3472 is not None and varEma3472 < 0 and varEma1734 is not None and varEma1734 < 0):
-            range_down305 = True
-
-        if (varEma72144 is not None and varEma72144 <= 0.382 and
-                varEma3472 is not None and varEma3472 < 0 and varEma1734 is not None and varEma1734 < 0):
-            range_down144 = True
-
-        if varEma3472 is not None and varEma3472 < 0 and varEma1734 is not None and varEma1734 < 0:
-            range_down72 = True
-
-        obj = D_range(d_raw=d_raw.get(asset_datetime=adt),
-                      asset_datetime=adt,
-                      d_range_up72=range_up72,
-                      d_range_up144=range_up144,
-                      d_range_up305=range_up305,
-                      d_range_up610=range_up610,
-                      d_range_up1292=range_up1292,
-                      d_range_up2584=range_up2584,
-
-                      d_range_down72=range_down72,
-                      d_range_down144=range_down144,
-                      d_range_down305=range_down305,
-                      d_range_down610=range_down610,
-                      d_range_down1292=range_down1292,
-                      d_range_down2584=range_down2584)
-        objs.append(obj)
-
-    if lastXrows > 0:
-        dRange.updateOrCreateObjs(objs[-lastXrows:])  # Last X Ascending
-    else:
-        dRange.bulk_create(objs)
-
-
-def D_mpUpdateTrend(symbol, lastXrows):
-    # Needed Settings for Multiprocessing usage
-    # import django
-    # django.setup()
-    # ---------------------
-    from market.models import Logging, D_raw, D_trend, D_var
-
-    l = Logging()
-    d_raw = D_raw.objects.only('asset_datetime')
-    dTrend = D_trend()
-    objs = []
-
-    # Ordered by 'd_datetime' ASCENDENT
-    adtList = list(D_raw.objects.filter(asset_symbol=symbol)
-                   .exclude(d_close=0)
-                   .values_list('asset_datetime', flat=True)
-                   .order_by('d_datetime'))
-
-    # Respect the order: [0]=varEma1734, [1]=varEma3472, [2]=varEma72144...
-    closeVarEmaList = list(D_var.objects.filter(d_raw_id__asset_symbol__exact=symbol)
-                           .exclude(d_raw_id__d_close=0)
-                           .values_list('d_var_emaclose1734', 'd_var_emaclose3472', 'd_var_emaclose72144',
-                                        'd_var_emaclose144305', 'd_var_emaclose305610')
-                           .order_by('asset_datetime'))
-
-    if len(adtList) != len(closeVarEmaList):
-        l.logIntoDb(log_level='ERROR',
-                    log_module='D_mpUpdateTrend',
-                    log_msg='[%s] Not ready: len[adtList] = %i and len(closeVarEmaList) = %i'
-                            % (symbol, len(adtList), len(closeVarEmaList)))
-        return
-
-    for x in range(len(adtList)):
-        adt = adtList[x]
-        varEma1734 = closeVarEmaList[x][0]
-        varEma3472 = closeVarEmaList[x][1]
-        varEma72144 = closeVarEmaList[x][2]
-        varEma144305 = closeVarEmaList[x][3]
-        varEma305610 = closeVarEmaList[x][4]
-
-        trend_up72 = trend_up144 = trend_up305 = trend_up610 = False
-        trend_down72 = trend_down144 = trend_down305 = trend_down610 = False
-
-        # # # # # # # # # # UP # # # # # # # # # #
-        if (varEma305610 is not None and 0 <= varEma305610 <= 0.618 and
-                varEma144305 is not None and -0.618 <= varEma144305 <= 0.618 and
-                varEma72144 is not None and -0.382 <= varEma72144 <= 0.618 and
-                varEma3472 is not None and 0 <= varEma3472 <= 1 and
-                varEma1734 is not None and 0 <= varEma1734 <= 0.618):
-            trend_up610 = True
-
-        if (varEma144305 is not None and -0.618 <= varEma144305 <= 0.618 and
-                varEma72144 is not None and -0.382 <= varEma72144 <= 0.618 and
-                varEma3472 is not None and 0 <= varEma3472 <= 1 and
-                varEma1734 is not None and 0 <= varEma1734 <= 0.618):
-            trend_up305 = True
-
-        if (varEma72144 is not None and -0.382 <= varEma72144 <= 0.618 and
-                varEma3472 is not None and 0 <= varEma3472 <= 1 and
-                varEma1734 is not None and 0 <= varEma1734 <= 0.618):
-            trend_up144 = True
-
-        if (varEma3472 is not None and 0 <= varEma3472 <= 1 and
-                varEma1734 is not None and 0 <= varEma1734 <= 0.618):
-            trend_up72 = True
-
-        # # # # # # # # # # DOWN # # # # # # # # # #
-        if (varEma305610 is not None and 0 >= varEma305610 >= 0.618 and
-                varEma144305 is not None and -0.618 >= varEma144305 >= 0.618 and
-                varEma72144 is not None and -0.382 >= varEma72144 >= 0.618 and
-                varEma3472 is not None and 0 >= varEma3472 >= 1 and
-                varEma1734 is not None and 0 >= varEma1734 >= 0.618):
-            trend_down610 = True
-
-        if (varEma144305 is not None and -0.618 >= varEma144305 >= 0.618 and
-                varEma72144 is not None and -0.382 >= varEma72144 >= 0.618 and
-                varEma3472 is not None and 0 >= varEma3472 >= 1 and
-                varEma1734 is not None and 0 >= varEma1734 >= 0.618):
-            trend_down305 = True
-
-        if (varEma72144 is not None and -0.382 >= varEma72144 >= 0.618 and
-                varEma3472 is not None and 0 >= varEma3472 >= 1 and
-                varEma1734 is not None and 0 >= varEma1734 >= 0.618):
-            trend_down144 = True
-
-        if (varEma3472 is not None and 0 >= varEma3472 >= 1 and
-                varEma1734 is not None and 0 >= varEma1734 >= 0.618):
-            trend_down72 = True
-
-        obj = D_trend(d_raw=d_raw.get(asset_datetime=adt),
-                      asset_datetime=adt,
-                      d_trend_up72=trend_up72,
-                      d_trend_up144=trend_up144,
-                      d_trend_up305=trend_up305,
-                      d_trend_up610=trend_up610,
-
-                      d_trend_down72=trend_down72,
-                      d_trend_down144=trend_down144,
-                      d_trend_down305=trend_down305,
-                      d_trend_down610=trend_down610)
-        objs.append(obj)
-
-    if lastXrows > 0:
-        dTrend.updateOrCreateObjs(objs[-lastXrows:])  # Last X Ascending
-    else:
-        dTrend.bulk_create(objs)
-"""
 
 
 def updateTechnicalCondition(symbol, lastXrows):
@@ -628,9 +353,9 @@ def updateTechnicalCondition(symbol, lastXrows):
                    .order_by('asset_datetime'))
 
     if len(adtList) != len(pvList):
-        l.logIntoDb(log_level='ERROR',
-                    log_module='updateTechnicalCondition',
-                    log_msg='[%s] Not ready: len[adtList] = %i and len(pvList) = %i'
+        l.log_into_db(level='error',
+                      context='updateTechnicalCondition',
+                      message='[%s] Not ready: len[adtList] = %i and len(pvList) = %i'
                             % (symbol, len(adtList), len(pvList)))
         return
 
@@ -698,7 +423,7 @@ def updateTechnicalCondition(symbol, lastXrows):
         d_tc.bulk_create(objs)
 
 
-def updateSetup(symbol, lastXrows):
+def updateSetup(symbol):
     from market.models import Logging, TechnicalCondition, D_raw, D_pvpc, D_ema, D_roc, D_setup, D_technicalCondition
     from market.classes.Setup import Setup
 
@@ -771,9 +496,9 @@ def updateSetup(symbol, lastXrows):
                           .order_by('asset_datetime'))
 
     if len(adtList) != len(pivotList):
-        l.logIntoDb(log_level='ERROR',
-                    log_module='updateSetup',
-                    log_msg='[%s] Not ready: len[adtList] = %i and len(pvList) = %i'
+        l.log_into_db(level='error',
+                      context='updateSetup',
+                      message='[%s] Not ready: len[adtList] = %i and len(pvList) = %i'
                             % (symbol, len(adtList), len(pivotList)))
         return
 

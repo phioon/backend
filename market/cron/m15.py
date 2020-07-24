@@ -1,25 +1,25 @@
-from market.models import StockExchange, Asset
+from market.models import StockExchange, Asset, Realtime
 from datetime import datetime, timedelta
 
 
-def updatePrices(se_short):
+def update_realtime_se_short(se_short):
     stockExchanges = list(StockExchange.objects.values_list('se_short', flat=True).distinct())
     if se_short not in stockExchanges:
         return
 
-    a = Asset()
     today = datetime.today().date()
     a_month_ago = today - timedelta(days=30)
 
-    assets = Asset.objects.filter(is_considered=True, last_access_time__gte=a_month_ago)
+    realtime = Realtime()
+    assets = Asset.objects.filter(last_access_time__gte=a_month_ago)
     for a in assets:
-        a.updatePrice(a.asset_symbol)
+        realtime.update_realtime_data(a.asset_symbol)
 
 
-def updatePrice(symbol):
+def update_realtime_asset(symbol):
     assets = list(Asset.objects.values_list('asset_symbol', flat=True))
     if symbol not in assets:
         return
 
-    a = Asset()
-    a.updatePrice(symbol)
+    realtime = Realtime()
+    realtime.update_realtime_data(symbol)

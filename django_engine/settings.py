@@ -10,9 +10,9 @@ DB_DEFAULT = {
     'PASSWORD': '#P1q2w3e4r$Infra',
 }
 GAE_PROJECT = 'phioon'
-GAE_PROVIDER_QUEUES = {
-    'alpha_vantage': {
-        'name': 'provider-av',
+GAE_QUEUES = {
+    'market-eod': {
+        'name': 'market-eod',
         'location': 'southamerica-east1'
     }
 }
@@ -27,7 +27,7 @@ if os.getenv('GAE_APPLICATION', None):
 else:
     # [DEV] environment
     DEBUG = True
-    ACCESS_PRD_DB = False  # Set 'True' to access PRD data (remember to turn the proxy on)
+    ACCESS_PRD_DB = True  # Set 'True' to access PRD data (remember to turn the proxy on)
 
     DB_DEFAULT['HOST'] = '127.0.0.1'
 

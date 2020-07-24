@@ -19,7 +19,7 @@ class AlphaVantage:
         except requests.exceptions.RequestException as ex:
             pass
             #log = Logging()
-            #log.logIntoDb(log_level='ERROR', log_module='json_from_request', log_msg=ex.response)
+            #log.log_into_db(log_level='ERROR', log_module='request_get', log_msg=ex.response)
 
         return json.loads(r.text)
 

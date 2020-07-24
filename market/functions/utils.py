@@ -1,13 +1,38 @@
 from django.utils import encoding
 import unicodedata
+import time
+import re
 
 
+# general
 def remove_special_chars(string):
+    string = str(string)
     string = unicodedata.normalize('NFKD', string)
     string = string.encode('ASCII', 'ignore')
     return encoding.force_str(string)
 
 
+def convert_epoch_timestamp(epoch):
+    while len(str(epoch)) > 10:
+        # It must be in seconds. In case it is miliseconds or nanoseconds, keep dividing
+        epoch = epoch / 1000
+
+    timestamp = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(epoch))
+    return timestamp
+
+
+def convert_epoch_date(epoch):
+    epoch = int(epoch[:5]) * 100000
+    date = convert_epoch_timestamp(epoch)
+    return date
+
+
+def get_asset_datetime(asset_symbol, datetime):
+    asset_datetime = str(asset_symbol + '_' + re.sub("[^0-9]", "", datetime))
+    return asset_datetime
+
+
+# technical analysis
 def percentage(numerator, denominator, decimals=2, if_denominator_is_zero=0):
     if denominator > 0:
         return round(numerator / denominator * 100, decimals)
