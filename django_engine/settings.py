@@ -27,7 +27,7 @@ if os.getenv('GAE_APPLICATION', None):
 else:
     # [DEV] environment
     DEBUG = True
-    ACCESS_PRD_DB = True  # Set 'True' to access PRD data (remember to turn the proxy on)
+    ACCESS_PRD_DB = False  # Set 'True' to access PRD data (remember to turn the proxy on)
 
     DB_DEFAULT['HOST'] = '127.0.0.1'
 
