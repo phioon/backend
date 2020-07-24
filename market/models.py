@@ -1,9 +1,7 @@
-from market.providerClasses.AlphaVantage import AlphaVantage
-from market import managers, providerClasses
-from .functions import symbolData_d, utils as phioon_utils
+from market import managers
+from .functions import symbolData_d
 from datetime import datetime, timedelta
 from django.db import models
-import re
 
 __dateFrom_D__ = str(datetime.today().date() - timedelta(days=4380))
 __dateFrom_m60__ = str(datetime.today().date() - timedelta(days=730))
