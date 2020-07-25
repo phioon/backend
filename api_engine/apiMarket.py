@@ -5,7 +5,6 @@ from rest_framework import generics, permissions
 from rest_framework import status
 from rest_framework.response import Response
 
-import market.cron.onDemand
 from django_engine.functions import generic
 from django_engine import settings
 from api_engine import serializers
@@ -99,7 +98,7 @@ class D_RawList(generics.ListAPIView):
 
 # Integration between Backend and Frontend.
 # 'min_success_rate' determines which Setups users will receive as Recommendation.
-min_success_rate = 60
+min_success_rate = 50
 
 
 class D_SetupList(generics.ListAPIView):
@@ -201,7 +200,7 @@ def run_raw_data_se_short(request, se_short, last_x_rows=5, apiKey=None):
     if apiKey == settings.API_KEY:
         st = time()
         # Here, 'is_considered_for_analysis' is temporary, in order to save licenses...
-        # If kept that way, an Asset will never become considered.
+        # If kept that way, User will never have data for Profitability Over Time chart
         assets = list(Asset.objects.filter(is_considered_for_analysis=True, stockExchange=se_short)
                       .values_list('asset_symbol', flat=True))
         if len(assets) == 0:
@@ -238,15 +237,46 @@ def run_raw_data_se_short(request, se_short, last_x_rows=5, apiKey=None):
 @permission_classes([permissions.AllowAny])
 def update_realtime_se_short(request, se_short, apiKey=None):
     if apiKey == settings.API_KEY:
-        m15.update_realtime_se_short(se_short)
+        st = time()
+        today = datetime.today().date()
+        a_month_ago = today - timedelta(days=30)
 
-        obj_res = {'message': "success."}
+        if today.weekday() in [5, 6]:
+            obj_res = {'message': "Today is not a weekday."}
+            return Response(obj_res)
+
+        assets_with_open_suggestion = D_setupSummary.objects \
+            .filter(has_position_open=True) \
+            .values_list('asset_symbol', flat=True).distinct()
+
+        assets = Asset.objects.filter(
+            Q(last_access_time__gte=a_month_ago) | Q(asset_symbol__in=assets_with_open_suggestion))
+
+        client = tasks_v2.CloudTasksClient()
+        parent = client.queue_path(settings.GAE_PROJECT,
+                                   settings.GAE_QUEUES['market-eod']['location'],
+                                   settings.GAE_QUEUES['market-eod']['name'])
+
+        with ThreadPool() as t:
+            for x in range(len(assets)):
+                url = settings.MARKET_API_BASE + 'task/updateRealtime/asset/'
+                url += assets[x] + '/'
+                url += settings.API_KEY
+                task = {
+                    'http_request': {
+                        'http_method': 'GET',
+                        'url': url}}
+                t.submit(client.create_task, parent, task)
+
+        duration = str(round(time() - st, 2))
+        obj_res = {'message': "Task '%s' for '%s' took %s seconds to complete."
+                              % ('update_realtime_se_short', se_short, duration)}
         return Response(obj_res)
     else:
         return HttpResponse(status=status.HTTP_403_FORBIDDEN)
 
 
-# Task Queues
+# Task used by GCloud queues
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
 def run_raw_data_asset(request, symbol, last_x_rows=5, apiKey=None):

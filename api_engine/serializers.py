@@ -64,11 +64,13 @@ class D_setupSerializer(serializers.ModelSerializer):
     se_short = serializers.ReadOnlyField(source='d_raw.asset_symbol.stockExchange.se_short')
     asset_symbol = serializers.ReadOnlyField(source='d_raw.asset_symbol_id')
     asset_label = serializers.ReadOnlyField(source='d_raw.asset_symbol.profile.asset_label')
+    asset_price = serializers.ReadOnlyField(source='d_raw.asset_symbol.realtime.price')
     tc_id = serializers.ReadOnlyField(source='tc.id')
 
     class Meta:
         model = D_setup
-        fields = ['id', 'se_short', 'asset_setup', 'asset_symbol', 'asset_label',
+        fields = ['id', 'se_short', 'asset_setup',
+                  'asset_symbol', 'asset_label', 'asset_price',
                   'started_on', 'ended_on', 'is_success', 'duration', 'tc_id',
                   'max_price', 'target', 'stop_loss', 'gain_percent', 'loss_percent', 'risk_reward',
                   'fibo_pct_retraction']
