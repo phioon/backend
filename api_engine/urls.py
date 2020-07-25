@@ -15,7 +15,7 @@ urlpatterns = [
 
 urlpatterns += [
     # Stock Exchange
-    path('market/cron/updateStockExchangeList/<apiKey>', apiMarket.update_stock_exchange_list,
+    path('market/task/updateStockExchangeList/<apiKey>', apiMarket.update_stock_exchange_list,
          name='Update Stock Exchanges'),
 
     # Asset
@@ -26,6 +26,10 @@ urlpatterns += [
 
     path('market/cron/runRaw/D/se_short/<se_short>/<int:last_x_rows>/<apiKey>', apiMarket.run_raw_data_se_short,
          name='Run Raw data SE'),
+
+    # Setups
+    path('market/task/runOfflineRaw/D/asset/<symbol>/<apiKey>', apiMarket.run_offline_raw_data_asset,
+         name='Run Offline Raw data Asset'),
 
     # Real-time
     path('market/cron/updateRealtime/se_short/<se_short>/<apiKey>', apiMarket.update_realtime_se_short,

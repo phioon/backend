@@ -32,38 +32,38 @@ class Setup:
         phibo_test_yesterday = phibo_test_3p[1]
         phibo_alignment_yesterday = phibo_alignment_3p[1]
 
-        if (phibo_alignment_yesterday == 7 and
+        if (phibo_alignment_yesterday in [6, 7] and
                 phibo_test_yesterday == 1292 and
                 low_ema_btl_yesterday == 6 and
                 pivot == 1):
             return 'phibo_1292_up'
         elif (phibo_alignment_yesterday in [6, 7] and
                 phibo_test_yesterday == 305 and
-                low_ema_btl_yesterday == 6 and
+                low_ema_btl_yesterday in [6, 7] and
                 roc_ema34 > 0 and
                 pivot == 1):
             return 'phibo_305_up'
         elif (phibo_alignment_yesterday in [6, 7] and
                 phibo_test_yesterday == 72 and
-                low_ema_btl_yesterday == 7 and
+                low_ema_btl_yesterday in [6, 7] and
                 roc_ema34 > 0 and
                 pivot == 1):
             return 'phibo_72_up'
 
-        elif (phibo_alignment_yesterday == 0 and
+        elif (phibo_alignment_yesterday in [0, 1] and
                 phibo_test_yesterday == -1292 and
                 high_ema_btl_yesterday == 1 and
                 pivot == -1):
             return 'phibo_1292_down'
         elif (phibo_alignment_yesterday in [0, 1] and
                 phibo_test_yesterday == -305 and
-                high_ema_btl_yesterday == 1 and
+                high_ema_btl_yesterday in [0, 1] and
                 roc_ema34 < 0 and
                 pivot == -1):
             return 'phibo_305_down'
         elif (phibo_alignment_yesterday in [0, 1] and
                 phibo_test_yesterday == -72 and
-                high_ema_btl_yesterday == 0 and
+                high_ema_btl_yesterday in [0, 1] and
                 roc_ema34 < 0 and
                 pivot == -1):
             return 'phibo_72_down'

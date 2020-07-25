@@ -5,11 +5,12 @@ from rest_framework import generics, permissions
 from rest_framework import status
 from rest_framework.response import Response
 
+import market.cron.onDemand
 from django_engine.functions import generic
 from django_engine import settings
 from api_engine import serializers
 from market.models import StockExchange, Asset, D_raw, TechnicalCondition, D_setup, D_setupSummary
-from market.cron import m15, daily, monthly
+from market.cron import m15, daily, monthly, onDemand
 
 from datetime import datetime, timedelta
 from time import time
@@ -142,10 +143,22 @@ class D_SetupSummaryList(generics.ListAPIView):
 def update_stock_exchange_list(request, apiKey=None):
     if apiKey == settings.API_KEY:
         st = time()
-        monthly.update_stock_exchange_list()
+        onDemand.update_stock_exchange_list()
         duration = str(round(time() - st, 2))
         obj_res = {'message': "Task '%s' took %s seconds to complete."
                               % ('update_stock_exchange_list', duration)}
+        return Response(obj_res)
+    else:
+        return Response(status=status.HTTP_403_FORBIDDEN)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def run_offline_raw_data_asset(request, symbol, apiKey=None):
+    if apiKey == settings.API_KEY:
+        onDemand.run_offline_raw_data_asset(symbol=symbol)
+
+        obj_res = {'message': "success"}
         return Response(obj_res)
     else:
         return Response(status=status.HTTP_403_FORBIDDEN)
