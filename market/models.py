@@ -225,7 +225,6 @@ class TechnicalCondition(models.Model):
 
     @staticmethod
     def pivot(high_4p, low_4p):
-
         if len(high_4p) == 4:
             if (high_4p[0] > high_4p[1] and
                     high_4p[1] <= high_4p[2] < high_4p[3] and
@@ -407,11 +406,8 @@ class TechnicalCondition(models.Model):
         lowest_low = min(lowList)
         highest_high = max(highList)
 
-        lowest_close = min(closeList)
-        lowest_close_pv72 = min(closeList[last_index - 3:])
-
-        highest_close = max(closeList)
-        highest_close_pv72 = max(closeList[last_index - 3:])
+        lowest_close_3p = min(closeList[last_index - 3:])
+        highest_close_3p = max(closeList[last_index - 3:])
 
         if pv1292 is not None:
             pv1292_range_min = pv1292 * range_min
@@ -437,25 +433,25 @@ class TechnicalCondition(models.Model):
 
         # BUY
         if lowest_low > pc72:
-            if (pv1292 is not None and lowest_close >= pv1292_limit_min and
+            if (pv1292 is not None and lowest_close_3p >= pv1292_limit_min and
                     pv1292_range_min <= low <= pv1292_range_max):
                 return 1292
-            elif (lowest_close >= pv305_limit_min and
+            elif (lowest_close_3p >= pv305_limit_min and
                     pv305_range_min <= low <= pv305_range_max):
                 return 305
-            elif (lowest_close_pv72 >= pv72_limit_min and
+            elif (lowest_close_3p >= pv72_limit_min and
                     pv72_range_min <= low <= pv72_range_max):
                 return 72
 
         # SELL
         elif highest_high < pv72:
-            if (pc1292 is not None and highest_close <= pc1292_limit_max and
+            if (pc1292 is not None and highest_close_3p <= pc1292_limit_max and
                     pc1292_range_min <= high <= pc1292_range_max):
                 return -1292
-            elif (highest_close <= pc305_limit_max and
+            elif (highest_close_3p <= pc305_limit_max and
                     pc305_range_min <= high <= pc305_range_max):
                 return -305
-            elif (highest_close_pv72 <= pc72_limit_max and
+            elif (highest_close_3p <= pc72_limit_max and
                     pc72_range_min <= high <= pc72_range_max):
                 return -72
 
@@ -569,10 +565,7 @@ class Asset(models.Model):
     stockExchange = models.ForeignKey(StockExchange, related_name='assets', on_delete=models.CASCADE)
 
     asset_symbol = models.CharField(max_length=32, primary_key=True)
-
-    asset_volatility = models.FloatField(null=True, verbose_name='Volatility percentage over last 10 days.')
     asset_volume_avg = models.IntegerField(null=True, verbose_name='Volume average over last 10 days.')
-
     is_considered_for_analysis = models.BooleanField(default=False, verbose_name='Is considered for Technical Analysis?')
 
     def __str__(self):
@@ -630,39 +623,8 @@ class Asset(models.Model):
 
     # D_Raw.updateAsset calls it every day
     def updateStats(self, symbol):
-        self.updateVolatility(symbol)
         self.updateVolumeAvg(symbol)
         self.runChecklist(symbol)
-
-    def updateVolatility(self, symbol):
-        vList = []
-
-        # Ordered by 'd_datetime' DESCENDENT
-        lowList = list(D_raw.objects.filter(asset_symbol=symbol)
-                       .exclude(d_close=0)
-                       .values_list('d_low', flat=True)
-                       .order_by('-d_datetime'))[:10]
-        highList = list(D_raw.objects.filter(asset_symbol=symbol)
-                        .exclude(d_close=0)
-                        .values_list('d_high', flat=True)
-                        .order_by('-d_datetime'))[:10]
-
-        # Calculate volatility of last 10 days
-        for x in range(len(lowList)):
-            if highList[x] > lowList[x]:
-                vDay = (highList[x] - lowList[x]) / lowList[x]
-            else:
-                vDay = (lowList[x] - highList[x]) / highList[x]
-            vList.append(vDay)
-
-        try:
-            v = round(sum(vList) / len(vList) * 100, 2)
-        except ZeroDivisionError:
-            v = 0
-
-        obj = Asset(asset_symbol=Asset.objects.get(asset_symbol=symbol),
-                    asset_volatility=v)
-        self.updateOrCreateObj(obj)
 
     def updateVolumeAvg(self, symbol):
         # Ordered by 'd_datetime' DESCENDENT
@@ -686,20 +648,15 @@ class Asset(models.Model):
 
         # Checking
         volAvg = asset.asset_volume_avg  # Check 01: Volume Avg
-        volatility = asset.asset_volatility  # Check 02: Volatility
         # ---------------------
 
-        if volAvg < 100000 or volatility < 1.00:
+        if volAvg < 100000:
             self.set_consideracy_for_analysis(symbol, False)
         elif asset.is_considered_for_analysis is False:       # It will set to False only if it's True now.
             self.set_consideracy_for_analysis(symbol, True)
 
     def updateOrCreateObj(self, obj):
-        if obj.asset_volatility is not None:
-            Asset.objects.update_or_create(asset_symbol=obj.asset_symbol,
-                                           defaults={'asset_volatility': obj.asset_volatility})
-
-        elif obj.asset_volume_avg is not None:
+        if obj.asset_volume_avg is not None:
             Asset.objects.update_or_create(asset_symbol=obj.asset_symbol,
                                            defaults={'asset_volume_avg': obj.asset_volume_avg})
 

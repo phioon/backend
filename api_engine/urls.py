@@ -15,25 +15,32 @@ urlpatterns = [
 
 urlpatterns += [
     # Stock Exchange
-    path('market/cron/updateStockExchangeList/<apiKey>', apiMarket.update_stock_exchange_list,
+    path('market/task/updateStockExchangeList/<apiKey>', apiMarket.update_stock_exchange_list,
          name='Update Stock Exchanges'),
-
     # Asset
     path('market/cron/updateAssetList/<se_short>/<apiKey>', apiMarket.update_asset_list,
          name='Update Asset List'),
+    path('market/cron/runRaw/D/se_short/<se_short>/<int:last_x_rows>/<apiKey>', apiMarket.run_raw_data_se_short,
+         name='Run Raw data for SE'),
     path('market/cron/updateAssetProfile/<symbol>/<apiKey>', apiMarket.update_asset_profile,
          name='Update Asset Profile'),
-
-    path('market/cron/runRaw/D/se_short/<se_short>/<int:last_x_rows>/<apiKey>', apiMarket.run_raw_data_se_short,
-         name='Run Raw data SE'),
-
     # Real-time
     path('market/cron/updateRealtime/se_short/<se_short>/<apiKey>', apiMarket.update_realtime_se_short,
-         name='Update Realtime SE'),
-    path('market/cron/updateRealtime/asset/<symbol>/<apiKey>', apiMarket.update_realtime_asset,
-         name='Update Realtime Asset'),
+         name='Update Realtime for SE'),
 
     # GCloud tasks
     path('market/task/runRaw/D/asset/<symbol>/<int:last_x_rows>/<apiKey>', apiMarket.run_raw_data_asset,
-         name='Run Raw data Asset'),
+         name='Run Raw data for Asset'),
+    path('market/task/updateRealtime/asset/<symbol>/<apiKey>', apiMarket.update_realtime_asset,
+         name='Update Realtime for Asset'),
+]
+
+# On-demand Offline Requests
+# These requests run calculations using only stored data. That means, without asking data to Providers.
+urlpatterns += [
+    # Offline
+    path('market/task/offline/runRaw/D/asset/<symbol>/<apiKey>', apiMarket.run_offline_raw_data_asset,
+         name='Run offline Raw data for Asset'),
+    path('market/task/offline/runSetup/D/asset/<symbol>/<apiKey>', apiMarket.run_offline_setup_asset,
+         name='Run offline Setup for Asset'),
 ]

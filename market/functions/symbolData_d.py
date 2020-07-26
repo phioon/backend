@@ -498,7 +498,7 @@ def updateSetup(symbol):
     if len(adtList) != len(pivotList):
         l.log_into_db(level='error',
                       context='updateSetup',
-                      message='[%s] Not ready: len[adtList] = %i and len(pvList) = %i'
+                      message='[%s] Not ready: len(adtList) = %i and len(pivotList) = %i'
                             % (symbol, len(adtList), len(pivotList)))
         return
 
@@ -519,6 +519,7 @@ def updateSetup(symbol):
         tcId_phibo = Setup.get_tcId_phibo(phibo_test_3p, phibo_alignment_3p,
                                           low_ema_btl_3p, high_ema_btl_3p,
                                           pivot, roc_ema34)
+
         if tcId_phibo:
             setup = Setup()
             setup.started_on = datetimes[x]

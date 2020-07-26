@@ -32,38 +32,38 @@ class Setup:
         phibo_test_yesterday = phibo_test_3p[1]
         phibo_alignment_yesterday = phibo_alignment_3p[1]
 
-        if (phibo_alignment_yesterday == 7 and
+        if (phibo_alignment_yesterday in [6, 7] and
                 phibo_test_yesterday == 1292 and
                 low_ema_btl_yesterday == 6 and
                 pivot == 1):
             return 'phibo_1292_up'
         elif (phibo_alignment_yesterday in [6, 7] and
                 phibo_test_yesterday == 305 and
-                low_ema_btl_yesterday == 6 and
+                low_ema_btl_yesterday in [6, 7] and
                 roc_ema34 > 0 and
                 pivot == 1):
             return 'phibo_305_up'
         elif (phibo_alignment_yesterday in [6, 7] and
                 phibo_test_yesterday == 72 and
-                low_ema_btl_yesterday == 7 and
+                low_ema_btl_yesterday in [6, 7] and
                 roc_ema34 > 0 and
                 pivot == 1):
             return 'phibo_72_up'
 
-        elif (phibo_alignment_yesterday == 0 and
+        elif (phibo_alignment_yesterday in [0, 1] and
                 phibo_test_yesterday == -1292 and
                 high_ema_btl_yesterday == 1 and
                 pivot == -1):
             return 'phibo_1292_down'
         elif (phibo_alignment_yesterday in [0, 1] and
                 phibo_test_yesterday == -305 and
-                high_ema_btl_yesterday == 1 and
+                high_ema_btl_yesterday in [0, 1] and
                 roc_ema34 < 0 and
                 pivot == -1):
             return 'phibo_305_down'
         elif (phibo_alignment_yesterday in [0, 1] and
                 phibo_test_yesterday == -72 and
-                high_ema_btl_yesterday == 0 and
+                high_ema_btl_yesterday in [0, 1] and
                 roc_ema34 < 0 and
                 pivot == -1):
             return 'phibo_72_down'
@@ -88,7 +88,8 @@ class Setup:
         elif self.tc.id == 'phibo_72_down':
             self.phibo_72_down(highList[:i + 1], lowList[:i + 1], pcList[:i + 1])
 
-        # print('tc_id: %s || started_on: %s || %s || %s' % (self.tc.id, self.started_on, self.target, self.stop_loss))
+        # if self.tc.id and self.started_on == '2020-06-16 00:00:00':
+        #     print('tc_id: %s || started_on: %s || %s || %s' % (self.tc.id, self.started_on, self.target, self.stop_loss))
 
         if self.target and self.stop_loss:
             self.run_setup(datetimes[i:], highList[i:], lowList[i:])
@@ -150,17 +151,29 @@ class Setup:
             high = highList[i]
             low = lowList[i]
 
-            # GAIN
-            if ((self.tc.type == 'purchase' and self.target <= high) or
-                    (self.tc.type == 'sale' and self.target >= low)):
-                self.ended_on = datetimes[i]
-                self.is_success = True
+            if self.tc.type == 'purchase':
+                # It's a PURCHASE setup
 
-            # LOSS
-            elif ((self.tc.type == 'purchase' and self.stop_loss >= low) or
-                  (self.tc.type == 'sale' and self.stop_loss <= high)):
-                self.ended_on = datetimes[i]
-                self.is_success = False
+                if self.target <= high:
+                    # It's a GAIN
+                    self.ended_on = datetimes[i]
+                    self.is_success = True
+                elif self.stop_loss >= low:
+                    # It's a LOSS
+                    self.ended_on = datetimes[i]
+                    self.is_success = False
+
+            else:
+                # It's a SALE setup
+
+                if self.target >= low:
+                    # It's a GAIN
+                    self.ended_on = datetimes[i]
+                    self.is_success = True
+                elif self.stop_loss <= high:
+                    # It's a LOSS
+                    self.ended_on = datetimes[i]
+                    self.is_success = False
 
             i += 1
 
@@ -178,7 +191,7 @@ class Setup:
         pv72 = pvList[last_index][0]
         pv1292 = pvList[last_index][2]
         pvTarget = pv72 + (pv72 - pv1292)
-        fiboProjection = utils.fibonacciProjection('buy', highList, lowList, 1.0)
+        fiboProjection = utils.fibonacci_projection('buy', highList, lowList, 1.0)
 
         self.store_fibonacci_projection(fiboProjection)
         self.target = round((pvTarget + fiboProjection['projection']) / 2, 2)
@@ -206,7 +219,7 @@ class Setup:
         self.max_price = round((high_today + low_today) / 2, 2)
 
         # Target
-        fiboProjection = utils.fibonacciProjection('buy', highList, lowList, 0.9)
+        fiboProjection = utils.fibonacci_projection('buy', highList, lowList, 0.9)
         self.store_fibonacci_projection(fiboProjection)
         self.target = fiboProjection['projection']
 
@@ -234,7 +247,7 @@ class Setup:
         self.max_price = round((high_today + low_today) / 2, 2)
 
         # Target
-        fiboProjection = utils.fibonacciProjection('buy', highList, lowList, 0.6)
+        fiboProjection = utils.fibonacci_projection('buy', highList, lowList, 0.6)
         self.store_fibonacci_projection(fiboProjection)
         self.target = fiboProjection['projection']
 
@@ -265,7 +278,7 @@ class Setup:
         pc72 = pcList[last_index][0]
         pc1292 = pcList[last_index][2]
         pcTarget = pc72 - (pc1292 - pc72)
-        fiboProjection = utils.fibonacciProjection('sell', highList, lowList, 1.4)
+        fiboProjection = utils.fibonacci_projection('sell', highList, lowList, 1.4)
 
         self.store_fibonacci_projection(fiboProjection)
         self.target = round((pcTarget + fiboProjection['projection']) / 2, 2)
@@ -293,7 +306,7 @@ class Setup:
         self.max_price = round((high_today + low_today) / 2, 2)
 
         # Target
-        fiboProjection = utils.fibonacciProjection('sell', highList, lowList, 0.94)
+        fiboProjection = utils.fibonacci_projection('sell', highList, lowList, 0.94)
         self.store_fibonacci_projection(fiboProjection)
         self.target = fiboProjection['projection']
 
@@ -321,7 +334,7 @@ class Setup:
         self.max_price = round((high_today + low_today) / 2, 2)
 
         # Target
-        fiboProjection = utils.fibonacciProjection('sell', highList, lowList, 0.6)
+        fiboProjection = utils.fibonacci_projection('sell', highList, lowList, 0.5)
         self.store_fibonacci_projection(fiboProjection)
         self.target = fiboProjection['projection']
 
@@ -350,7 +363,7 @@ class Setup:
         self.max_price = round((dayHigh + yesterdayHigh) / 2, 2)
 
         # Target
-        fiboProjection = utils.fibonacciProjection('buy', highList, lowList, 1)
+        fiboProjection = utils.fibonacci_projection('buy', highList, lowList, 1)
         self.store_fibonacci_projection(fiboProjection)
         self.target = fiboProjection['projection']
 

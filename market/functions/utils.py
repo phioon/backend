@@ -75,12 +75,12 @@ def stop_loss_sell(max_price, stop_loss):
     return percentage(delta, max_price)
 
 
-def fibonacciProjection(type, highList, lowList, projection_percentage, max_periods_to_consider=72):
+def fibonacci_projection(type, highList, lowList, projection_percentage, max_periods_to_consider=72):
     # highList and lowList are ordered by ASCENDENT
     # So, the more recent data is in the last position
 
     p1 = p2 = p3 = None
-    fiboProjection = {}
+    fibo_projection = {}
 
     lastIndex = len(highList) - 1
     periods = 17
@@ -145,8 +145,8 @@ def fibonacciProjection(type, highList, lowList, projection_percentage, max_peri
             keepLooking = False
 
     # Considering only positions after p1 (From p1 to lastIndex)
-    highList = highList[lastIndex - periods: lastIndex - 1]
-    lowList = lowList[lastIndex - periods: lastIndex - 1]
+    highList = highList[lastIndex - periods: lastIndex + 1]
+    lowList = lowList[lastIndex - periods: lastIndex + 1]
 
     p2Index = None
 
@@ -175,20 +175,23 @@ def fibonacciProjection(type, highList, lowList, projection_percentage, max_peri
         retraction = p3 - p2
         projection = p3 - (wave_1 * projection_percentage)
 
-    fiboProjection['periods_needed'] = periods
-    fiboProjection['p1'] = round(p1, 2)
-    fiboProjection['p2'] = round(p2, 2)
-    fiboProjection['p3'] = round(p3, 2)
-    fiboProjection['wave_1'] = round(wave_1, 2)
-    fiboProjection['retraction'] = round(retraction, 2)
-    fiboProjection['pct_retraction'] = percentage(retraction, wave_1, decimals=1)
-    fiboProjection['projection'] = round(projection, 2)
+    fibo_projection['periods_needed'] = periods
+    fibo_projection['p1'] = round(p1, 2)
+    fibo_projection['p2'] = round(p2, 2)
+    fibo_projection['p3'] = round(p3, 2)
+    fibo_projection['wave_1'] = round(wave_1, 2)
+    fibo_projection['retraction'] = round(retraction, 2)
+    fibo_projection['pct_retraction'] = percentage(retraction, wave_1, decimals=1)
+    fibo_projection['projection'] = round(projection, 2)
 
-    # print(' .. ini_lowest: %s ' % ini_lowest)
-    # print(' .. ini_highest: %s ' % ini_highest)
-    # print(' .. periods: %s ' % periods)
-    # print(' .. p1: %s ' % p1)
-    # print(' .. p2: %s ' % p2)
-    # print(' .. p3: %s ' % p3)
+    fibo_projection = review_fibo_projection(fibo_projection)
 
-    return fiboProjection
+    return fibo_projection
+
+
+def review_fibo_projection(fibo_projection):
+    if fibo_projection['projection'] <= 0:
+        # Don't let projection be lesser than 0.
+        fibo_projection['projection'] = 1.5
+
+    return fibo_projection

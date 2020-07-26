@@ -1,11 +1,6 @@
 from market.models import StockExchange, Asset, Profile
 
 
-def update_stock_exchange_list():
-    se = StockExchange()
-    se.update_stock_exchange_list()
-
-
 def update_asset_list(se_short):
     stockExchanges = list(StockExchange.objects.values_list('se_short', flat=True).distinct())
     if se_short not in stockExchanges:
