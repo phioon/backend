@@ -163,6 +163,18 @@ def run_offline_raw_data_asset(request, symbol, apiKey=None):
         return Response(status=status.HTTP_403_FORBIDDEN)
 
 
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def run_offline_setup_asset(request, symbol, apiKey=None):
+    if apiKey == settings.API_KEY:
+        onDemand.run_offline_setup_asset(symbol=symbol)
+
+        obj_res = {'message': "success"}
+        return Response(obj_res)
+    else:
+        return Response(status=status.HTTP_403_FORBIDDEN)
+
+
 # Cron Job (1st of month at 22:00)
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])

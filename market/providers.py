@@ -8,6 +8,11 @@ from market.functions import utils
 def request_get(request, headers={}):
     try:
         result = requests.get(request, headers=headers)
+
+        if 'service unavailable' in str(result.text).lower():
+            # Try again... Yahoo doesn't have a very good availability (2020-07-25)
+            result = requests.get(request, headers=headers)
+
     except requests.exceptions.Timeout:
         # Try again
         result = requests.get(request)
@@ -423,8 +428,11 @@ class Yahoo:
                       'symbol=<asset_symbol>')
     api_realtime = str('https://apidojo-yahoo-finance-v1.p.rapidapi.com/stock/v2/get-profile?'
                        'symbol=<asset_symbol>')
+    api_eod = str('https://apidojo-yahoo-finance-v1.p.rapidapi.com/stock/v2/get-chart?'
+                  'symbol=<asset_symbol>&'
+                  'interval=<interval>&'
+                  'range=<range>')
     api_key = '60d22cc6a5msh3e9ce925473ad87p1f91f1jsn3dfaee312de6'
-    limit = '1000'
 
     # utils
     def convert_symbol(self, asset_symbol):
@@ -496,6 +504,38 @@ class Yahoo:
         return round(pct_change, 2)
 
     # services
+    def get_eod_data(self, asset_symbol, last_x_rows):
+        # Get EOD data
+        result = {'status': None, 'data': None}
+
+        request = self.api_eod
+        request = request.replace('<asset_symbol>', asset_symbol)
+        request = request.replace('<interval>', '1d')
+        request = request.replace('<range>', '10y')
+
+        if last_x_rows == 0 or last_x_rows > int(self.limit):
+            # Limit is set to max value supported.
+            request = request.replace('<limit>', self.limit)
+            result['rdata'] = self.get_paginated_data(request, data_key='eod')
+
+            if len(result['rdata']) == 0:
+                result['status'] = 404
+            else:
+                result['status'] = 200
+                result['data'] = self.prepare_eod_data(asset_symbol, result['rdata'])
+        else:
+            # Limit is set as last_x_rows
+            request = request.replace('<limit>', str(last_x_rows))
+            result['rdata'] = request_get_data(request)
+
+            if 'error' in result['rdata']:
+                result['status'] = 404
+            else:
+                result['status'] = 200
+                result['data'] = self.prepare_eod_data(asset_symbol, result['rdata']['data']['eod'])
+
+        return result
+
     def get_profile_data(self, asset_symbol):
         # Get profile data
         result = {'status': None, 'data': None}
@@ -536,6 +576,26 @@ class Yahoo:
         return result
 
     # prepares
+    def prepare_eod_data(self, asset_symbol, rdata):
+        # Prepares data to be recognized as table's fields.
+        data = []
+
+        for obj in rdata:
+            adj_pct = utils.division(float(obj['adj_close']),
+                                     float(obj['close']),
+                                     decimals=5,
+                                     if_denominator_is_zero=1)
+
+            data.append({'asset_symbol': asset_symbol,
+                         'datetime': self.get_date_isoformat(obj['date']),
+                         'open': round(float(obj['open']) * adj_pct, 2),
+                         'high': round(float(obj['high']) * adj_pct, 2),
+                         'low': round(float(obj['low']) * adj_pct, 2),
+                         'close': round(float(obj['adj_close']), 2),
+                         'volume': int(obj['volume'])})
+
+        return data
+
     def prepare_profile_data(self, asset_symbol, rdata):
         # Prepares data to be recognized as table's fields.
         data = {

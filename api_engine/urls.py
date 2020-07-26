@@ -24,9 +24,6 @@ urlpatterns += [
          name='Run Raw data for SE'),
     path('market/cron/updateAssetProfile/<symbol>/<apiKey>', apiMarket.update_asset_profile,
          name='Update Asset Profile'),
-    # Setups
-    path('market/task/runOfflineRaw/D/asset/<symbol>/<apiKey>', apiMarket.run_offline_raw_data_asset,
-         name='Run Offline Raw data for Asset'),
     # Real-time
     path('market/cron/updateRealtime/se_short/<se_short>/<apiKey>', apiMarket.update_realtime_se_short,
          name='Update Realtime for SE'),
@@ -36,4 +33,14 @@ urlpatterns += [
          name='Run Raw data for Asset'),
     path('market/task/updateRealtime/asset/<symbol>/<apiKey>', apiMarket.update_realtime_asset,
          name='Update Realtime for Asset'),
+]
+
+# On-demand Offline Requests
+# These requests run calculations using only stored data. That means, without asking data to Providers.
+urlpatterns += [
+    # Offline
+    path('market/task/offline/runRaw/D/asset/<symbol>/<apiKey>', apiMarket.run_offline_raw_data_asset,
+         name='Run offline Raw data for Asset'),
+    path('market/task/offline/runSetup/D/asset/<symbol>/<apiKey>', apiMarket.run_offline_setup_asset,
+         name='Run offline Setup for Asset'),
 ]
