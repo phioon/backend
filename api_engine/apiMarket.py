@@ -270,9 +270,9 @@ def update_realtime_se_short(request, se_short, apiKey=None):
                                    settings.GAE_QUEUES['market-eod']['name'])
 
         with ThreadPool() as t:
-            for x in range(len(assets)):
+            for asset in assets:
                 url = settings.MARKET_API_BASE + 'task/updateRealtime/asset/'
-                url += assets[x] + '/'
+                url += asset.asset_symbol + '/'
                 url += settings.API_KEY
                 task = {
                     'http_request': {

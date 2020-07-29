@@ -9,7 +9,7 @@ def request_get(request, headers={}):
     try:
         result = requests.get(request, headers=headers)
 
-        if 'service unavailable' in str(result.text).lower():
+        if result.status_code in [500, 503]:
             # Try again... Yahoo doesn't have a very good availability (2020-07-25)
             result = requests.get(request, headers=headers)
 
@@ -39,6 +39,7 @@ def request_get_data(request, headers={}):
 
 # Provider Classes
 class AlphaVantage:
+    id = 'alpha_vantage'
     # https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol=VALE3.SAO&outputsize=full&apikey=3YQ322UE0X66IU2R
     # https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=VALE3.SAO&apikey=3YQ322UE0X66IU2R
 
@@ -86,6 +87,12 @@ class AlphaVantage:
         caller_name = inspect.stack()[1].function
         return str('%s.%s' % (class_name, caller_name))
 
+    def get_date_isoformat(self, timestamp):
+        timestamp = str(timestamp)
+        timestamp += ' 00:00:00'
+
+        return timestamp
+
     # services
     def get_realtime_data(self, asset_symbol):
         # Get real-time data
@@ -117,46 +124,58 @@ class AlphaVantage:
 
         return result
 
-    def get_eod_data(self, asset_symbol, outputsize='compact'):
+    def get_eod_data(self, asset_symbol, last_x_periods):
         # Get EOD data
         result = {'status': None, 'data': None}
         converted_symbol = self.convert_symbol(asset_symbol)
 
-        request = self.api_realtime
+        request = self.api_eod
         request = request.replace('<api_key>', self.api_key)
         request = request.replace('<asset_symbol>', converted_symbol)
-        request = request.replace('<outputsize>', outputsize)
+
+        if last_x_periods == 0 or last_x_periods > 100:
+            request = request.replace('<outputsize>', 'full')
+        else:
+            request = request.replace('<outputsize>', 'compact')
 
         result['rdata'] = request_get_data(request)
 
-        if result['data']['Time Series (Daily)']:
-            # Symbol found
+        if 'Time Series (Daily)' in result['rdata'] and len(result['rdata']['Time Series (Daily)']) > 0:
             result['status'] = 200
-            for k, v in result['rdata']['Time Series (Daily)'].items():
-                pct_adjustment = utils.division(float(v['5. adjusted close']),
-                                                float(v['4. close']),
-                                                decimals=5,
-                                                if_denominator_is_zero=1)
-
-                result['data'].append({'datetime': str(k + ' 00:00:00'),
-                                       'symbol': asset_symbol,
-                                       'open': float(v['1. open']) * pct_adjustment,
-                                       'high': float(v['2. high']) * pct_adjustment,
-                                       'low': float(v['3. low']) * pct_adjustment,
-                                       'close': float(v['5. adjusted close']),
-                                       'volume': v['6. volume']})
+            result['data'] = self.prepare_eod_data(result['rdata'])
         else:
-            # Symbol not found
             result['status'] = 404
 
-        if len(list) <= 1:
-            raise Exception('Alpha Vantage: Empty List')
         return result
 
     # prepares
+    def prepare_eod_data(self, rdata):
+        # Prepares data to be recognized as table's fields.
+        data = []
+
+        for k, v in rdata['Time Series (Daily)'].items():
+            adj_pct = 1     # default value
+
+            if v['5. adjusted close'] and v['4. close']:
+                adj_pct = utils.division(float(v['5. adjusted close']),
+                                         float(v['4. close']),
+                                         decimals=5,
+                                         if_denominator_is_zero=1)
+
+            data.append({'datetime': self.get_date_isoformat(k),
+                         'adj_pct': adj_pct,
+                         'open': v['1. open'],
+                         'high': v['2. high'],
+                         'low': v['3. low'],
+                         'close': v['5. adjusted close'],
+                         'volume': v['6. volume']
+            })
+
+        return data
 
 
 class MarketStack:
+    id = 'market_stack'
     api_assets_by_stock_exchange = str('http://api.marketstack.com/v1/exchanges/<se_short>/tickers?'
                                        'access_key=<api_key>&'
                                        'limit=<limit>')
@@ -212,10 +231,12 @@ class MarketStack:
 
     def get_date_isoformat(self, timestamp):
         timestamp = str(timestamp)
-        if '+' in timestamp:
-            timestamp = timestamp[: timestamp.rindex('+')]
         if 'T' in timestamp:
-            timestamp = timestamp.replace('T', ' ')
+            timestamp = timestamp[: timestamp.index('T')]
+        else:
+            timestamp = timestamp[: 10]
+
+        timestamp += ' 00:00:00'
         return timestamp
 
     def get_se_short(self, se_short):
@@ -291,15 +312,16 @@ class MarketStack:
 
         return result
 
-    def get_eod_data(self, asset_symbol, last_x_rows):
+    def get_eod_data(self, asset_symbol, last_x_periods):
         # Get EOD data
         result = {'status': None, 'data': None}
+        converted_symbol = self.convert_symbol(asset_symbol)
 
         request = self.api_eod
-        request = request.replace('<asset_symbol>', asset_symbol)
+        request = request.replace('<asset_symbol>', converted_symbol)
         request = request.replace('<api_key>', self.api_key)
 
-        if last_x_rows == 0 or last_x_rows > int(self.limit):
+        if last_x_periods == 0 or last_x_periods > int(self.limit):
             # Limit is set to max value supported.
             request = request.replace('<limit>', self.limit)
             result['rdata'] = self.get_paginated_data(request, data_key='eod')
@@ -308,17 +330,17 @@ class MarketStack:
                 result['status'] = 404
             else:
                 result['status'] = 200
-                result['data'] = self.prepare_eod_data(asset_symbol, result['rdata'])
+                result['data'] = self.prepare_eod_data(result['rdata'])
         else:
             # Limit is set as last_x_rows
-            request = request.replace('<limit>', str(last_x_rows))
+            request = request.replace('<limit>', str(last_x_periods))
             result['rdata'] = request_get_data(request)
 
-            if 'error' in result['rdata']:
+            if 'error' in result['rdata'] or len(result['rdata']) == 0:
                 result['status'] = 404
             else:
                 result['status'] = 200
-                result['data'] = self.prepare_eod_data(asset_symbol, result['rdata']['data']['eod'])
+                result['data'] = self.prepare_eod_data(result['rdata']['data']['eod'])
 
         return result
 
@@ -374,23 +396,26 @@ class MarketStack:
 
         return data
 
-    def prepare_eod_data(self, asset_symbol, rdata):
+    def prepare_eod_data(self, rdata):
         # Prepares data to be recognized as table's fields.
         data = []
 
         for obj in rdata:
-            adj_pct = utils.division(float(obj['adj_close']),
-                                     float(obj['close']),
-                                     decimals=5,
-                                     if_denominator_is_zero=1)
+            adj_pct = 1  # default value
 
-            data.append({'asset_symbol': asset_symbol,
-                         'datetime': self.get_date_isoformat(obj['date']),
-                         'open': round(float(obj['open']) * adj_pct, 2),
-                         'high': round(float(obj['high']) * adj_pct, 2),
-                         'low': round(float(obj['low']) * adj_pct, 2),
-                         'close': round(float(obj['adj_close']), 2),
-                         'volume': int(obj['volume'])})
+            if obj['adj_close'] and obj['close']:
+                adj_pct = utils.division(float(obj['adj_close']),
+                                         float(obj['close']),
+                                         decimals=5,
+                                         if_denominator_is_zero=1)
+
+            data.append({'datetime': self.get_date_isoformat(obj['date']),
+                         'adj_pct': adj_pct,
+                         'open': obj['open'],
+                         'high': obj['high'],
+                         'low': obj['low'],
+                         'close': obj['adj_close'],
+                         'volume': obj['volume']})
 
         return data
 
@@ -424,6 +449,7 @@ class MarketStack:
 
 
 class Yahoo:
+    id = 'yahoo'
     api_profile = str('https://apidojo-yahoo-finance-v1.p.rapidapi.com/stock/v2/get-profile?'
                       'symbol=<asset_symbol>')
     api_realtime = str('https://apidojo-yahoo-finance-v1.p.rapidapi.com/stock/v2/get-profile?'
@@ -494,6 +520,16 @@ class Yahoo:
 
         return country_code
 
+    def get_date_isoformat(self, timestamp):
+        timestamp = str(timestamp)
+        if 'T' in timestamp:
+            timestamp = timestamp[: timestamp.index('T')]
+        else:
+            timestamp = timestamp[: 10]
+
+        timestamp += ' 00:00:00'
+        return timestamp
+
     def get_sector_id(self, sector_name):
         sector_id = str(sector_name).lower()
         sector_id = sector_id.replace(' ', '_')
@@ -504,35 +540,34 @@ class Yahoo:
         return round(pct_change, 2)
 
     # services
-    def get_eod_data(self, asset_symbol, last_x_rows):
+    def get_eod_data(self, asset_symbol, last_x_periods):
         # Get EOD data
         result = {'status': None, 'data': None}
+        converted_symbol = self.convert_symbol(asset_symbol)
 
+        headers = {'X-RapidAPI-Key': self.api_key}
         request = self.api_eod
-        request = request.replace('<asset_symbol>', asset_symbol)
+        request = request.replace('<asset_symbol>', converted_symbol)
         request = request.replace('<interval>', '1d')
-        request = request.replace('<range>', '10y')
 
-        if last_x_rows == 0 or last_x_rows > int(self.limit):
-            # Limit is set to max value supported.
-            request = request.replace('<limit>', self.limit)
-            result['rdata'] = self.get_paginated_data(request, data_key='eod')
+        if last_x_periods == 0 or last_x_periods > 250:
+            request = request.replace('<range>', '10y')
+        elif last_x_periods <= 5:
+            request = request.replace('<range>', '5d')
+        elif last_x_periods <= 20:
+            request = request.replace('<range>', '1mo')
+        elif last_x_periods <= 250:
+            request = request.replace('<range>', '1y')
 
-            if len(result['rdata']) == 0:
-                result['status'] = 404
-            else:
-                result['status'] = 200
-                result['data'] = self.prepare_eod_data(asset_symbol, result['rdata'])
+        result['rdata'] = request_get_data(request, headers)
+
+        if 'chart' in result['rdata'] and \
+                'result' in result['rdata']['chart'] and \
+                len(result['rdata']['chart']['result']) > 0:
+            result['status'] = 200
+            result['data'] = self.prepare_eod_data(result['rdata']['chart']['result'][0])
         else:
-            # Limit is set as last_x_rows
-            request = request.replace('<limit>', str(last_x_rows))
-            result['rdata'] = request_get_data(request)
-
-            if 'error' in result['rdata']:
-                result['status'] = 404
-            else:
-                result['status'] = 200
-                result['data'] = self.prepare_eod_data(asset_symbol, result['rdata']['data']['eod'])
+            result['status'] = 404
 
         return result
 
@@ -576,23 +611,35 @@ class Yahoo:
         return result
 
     # prepares
-    def prepare_eod_data(self, asset_symbol, rdata):
+    def prepare_eod_data(self, rdata):
         # Prepares data to be recognized as table's fields.
         data = []
 
-        for obj in rdata:
-            adj_pct = utils.division(float(obj['adj_close']),
-                                     float(obj['close']),
-                                     decimals=5,
-                                     if_denominator_is_zero=1)
+        for x in range(len(rdata['timestamp'])):
+            adj_pct = 1         # default value
 
-            data.append({'asset_symbol': asset_symbol,
-                         'datetime': self.get_date_isoformat(obj['date']),
-                         'open': round(float(obj['open']) * adj_pct, 2),
-                         'high': round(float(obj['high']) * adj_pct, 2),
-                         'low': round(float(obj['low']) * adj_pct, 2),
-                         'close': round(float(obj['adj_close']), 2),
-                         'volume': int(obj['volume'])})
+            datetime = utils.convert_epoch_timestamp(rdata['timestamp'][x])
+            datetime = self.get_date_isoformat(datetime)
+            open = rdata['indicators']['quote'][0]['open'][x]
+            high = rdata['indicators']['quote'][0]['high'][x]
+            low = rdata['indicators']['quote'][0]['low'][x]
+            close = rdata['indicators']['quote'][0]['close'][x]
+            adj_close = rdata['indicators']['adjclose'][0]['adjclose'][x]
+            volume = rdata['indicators']['quote'][0]['volume'][x]
+
+            if adj_close and close:
+                adj_pct = utils.division(float(adj_close),
+                                         float(close),
+                                         decimals=5,
+                                         if_denominator_is_zero=1)
+
+            data.append({'datetime': self.get_date_isoformat(datetime),
+                         'adj_pct': adj_pct,
+                         'open': open,
+                         'high': high,
+                         'low': low,
+                         'close': adj_close,
+                         'volume': volume})
 
         return data
 

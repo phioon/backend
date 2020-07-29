@@ -1,4 +1,5 @@
 from django.utils import encoding
+from operator import itemgetter
 import unicodedata
 import time
 import re
@@ -21,20 +22,64 @@ def convert_epoch_timestamp(epoch):
     return timestamp
 
 
-def convert_epoch_date(epoch):
-    epoch = int(epoch[:5]) * 100000
-    date = convert_epoch_timestamp(epoch)
-    return date
-
-
 def get_asset_datetime(asset_symbol, datetime):
     asset_datetime = str(asset_symbol + '_' + re.sub("[^0-9]", "", datetime))
     return asset_datetime
 
 
+# data structures
+def get_field_as_key(obj_list, key_field):
+    dictionary = {}
+    for obj in obj_list:
+        if obj[key_field] not in dictionary:
+            dictionary[obj[key_field]] = []
+        dictionary[obj[key_field]].append(obj)
+
+    return dictionary
+
+
+def get_field_as_unique_key(obj_list, key_field):
+    dictionary = {}
+    for obj in obj_list:
+        dictionary[obj[key_field]] = obj
+
+    return dictionary
+
+
+def has_empty_fields(obj):
+    for value in obj.values():
+        if not value:
+            return True
+    return False
+
+
+def retrieve_obj_from_obj_list(obj_list, key_field, value):
+    for obj in obj_list:
+        if obj[key_field] == value:
+            return obj
+
+
+def order_by_asc(obj_list, field):
+    obj_list = sorted(obj_list, key=itemgetter(field))
+    return obj_list
+
+
+def order_by_desc(obj_list, field):
+    obj_list = sorted(obj_list, key=itemgetter(field), reverse=True)
+    return obj_list
+
+
 # technical analysis
+def rate_of_change(v1, v2):
+    delta = 0
+    if v2 and v1:
+        delta = v2 - v1
+
+    return percentage(delta, v1)
+
+
 def percentage(numerator, denominator, decimals=2, if_denominator_is_zero=0):
-    if denominator > 0:
+    if denominator and denominator > 0:
         return round(numerator / denominator * 100, decimals)
     else:
         return if_denominator_is_zero

@@ -12,7 +12,7 @@ class Logging(models.Model):
     timestamp = models.DateTimeField(auto_now=True)
     level = models.CharField(max_length=8)
     context = models.CharField(max_length=64)
-    message = models.TextField(max_length=2048)
+    message = models.TextField()
     created_by = models.CharField(max_length=32)
 
     def __str__(self):
@@ -788,17 +788,15 @@ class D_raw(models.Model):
 
     def updateOrCreateObjs(self, objs):
         for x in range(len(objs)):
-            if not (objs[x].d_open is None or objs[x].d_high is None or
-                    objs[x].d_low is None or objs[x].d_close is None or objs[x].d_volume is None):
-                D_raw.objects.update_or_create(
-                    asset_datetime=objs[x].asset_datetime,
-                    defaults={'asset_symbol': objs[x].asset_symbol,
-                              'd_datetime': objs[x].d_datetime,
-                              'd_open': objs[x].d_open,
-                              'd_high': objs[x].d_high,
-                              'd_low': objs[x].d_low,
-                              'd_close': objs[x].d_close,
-                              'd_volume': objs[x].d_volume})
+            D_raw.objects.update_or_create(
+                asset_datetime=objs[x].asset_datetime,
+                defaults={'asset_symbol': objs[x].asset_symbol,
+                          'd_datetime': objs[x].d_datetime,
+                          'd_open': objs[x].d_open,
+                          'd_high': objs[x].d_high,
+                          'd_low': objs[x].d_low,
+                          'd_close': objs[x].d_close,
+                          'd_volume': objs[x].d_volume})
 
 
 class D_pvpc(models.Model):
