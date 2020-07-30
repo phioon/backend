@@ -210,13 +210,26 @@ def update_asset_profile(request, symbol, apiKey=None):
 @permission_classes([permissions.AllowAny])
 def run_raw_data_se_short(request, se_short, last_x_rows=5, apiKey=None):
     if apiKey == settings.API_KEY:
-        st = time()
+        today = datetime.today()
+
         # Here, 'is_considered_for_analysis' is temporary, in order to save licenses...
-        # If kept that way, User will never have data for Profitability Over Time chart
-        assets = list(Asset.objects.filter(is_considered_for_analysis=True, stockExchange=se_short)
-                      .values_list('asset_symbol', flat=True))
-        if len(assets) == 0:
-            return
+        # If kept that way, User will never have data for Profitability Over Time chart for some assets.
+        sync_list = []
+        assets = Asset.objects.filter(is_considered_for_analysis=True, stockExchange=se_short)
+
+        delta_days_tolerance = 2        # Default used for Mon, Tue, Wed, Thu, Sex and Sat
+
+        if today.weekday() in [6]:
+            delta_days_tolerance = 3    # It's Sunday, so increase tolerance
+
+        for asset in assets:
+            latest_draw = asset.draws.order_by('-d_datetime')[0]
+            latest_datetime = datetime.strptime(latest_draw.d_datetime, '%Y-%m-%d %H:%M:%S')
+            delta = today - latest_datetime
+
+            if delta > timedelta(days=delta_days_tolerance):
+                # Sync only assets that really need to be synchronized
+                sync_list.append(asset)
 
         client = tasks_v2.CloudTasksClient()
         parent = client.queue_path(settings.GAE_PROJECT,
@@ -224,9 +237,9 @@ def run_raw_data_se_short(request, se_short, last_x_rows=5, apiKey=None):
                                    settings.GAE_QUEUES['market-eod']['name'])
 
         with ThreadPool() as t:
-            for x in range(len(assets)):
+            for asset in sync_list:
                 url = settings.MARKET_API_BASE + 'task/runRaw/D/asset/'
-                url += assets[x] + '/'
+                url += asset.asset_symbol + '/'
                 url += str(last_x_rows) + '/'
                 url += settings.API_KEY
                 task = {
@@ -235,9 +248,9 @@ def run_raw_data_se_short(request, se_short, last_x_rows=5, apiKey=None):
                         'url': url}}
                 t.submit(client.create_task, parent, task)
 
-        duration = str(round(time() - st, 2))
-        obj_res = {'message': "Task '%s' for '%s' took %s seconds to complete."
-                              % ('run_raw_data_se_short', se_short, duration)}
+        obj_res = {
+            'context': 'apiMarket.run_raw_data_se_short',
+            'message': "[%s] Assets to be updated: %s" % (se_short, sync_list)}
         return Response(obj_res)
     else:
         return Response(status=status.HTTP_403_FORBIDDEN)
@@ -266,8 +279,8 @@ def update_realtime_se_short(request, se_short, apiKey=None):
 
         client = tasks_v2.CloudTasksClient()
         parent = client.queue_path(settings.GAE_PROJECT,
-                                   settings.GAE_QUEUES['market-eod']['location'],
-                                   settings.GAE_QUEUES['market-eod']['name'])
+                                   settings.GAE_QUEUES['market-realtime']['location'],
+                                   settings.GAE_QUEUES['market-realtime']['name'])
 
         with ThreadPool() as t:
             for asset in assets:

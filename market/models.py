@@ -750,7 +750,7 @@ class Realtime(models.Model):
 
 
 class D_raw(models.Model):
-    asset_symbol = models.ForeignKey(Asset, verbose_name='Asset Symbol', on_delete=models.CASCADE)
+    asset_symbol = models.ForeignKey(Asset, related_name='draws', verbose_name='Asset Symbol', on_delete=models.CASCADE)
     asset_datetime = models.CharField(max_length=64, unique=True, db_index=True)  # (PETR4.SAO_20191231000000)
     d_datetime = models.CharField(max_length=32, db_index=True)
     d_open = models.FloatField()

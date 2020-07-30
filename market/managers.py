@@ -38,7 +38,7 @@ class ProviderManager:
 
         log_level = 'info'
         context = self.get_context()
-        msg = str('No providers could retrieve data for Stock Exchange List')
+        msg = str('[Stock Exchange List] No providers could retrieve data.')
         log.log_into_db(level=log_level, context=context, message=msg)
         return {}
 
@@ -55,7 +55,7 @@ class ProviderManager:
 
         log_level = 'info'
         context = self.get_context()
-        msg = str('No providers could retrieve data for Stock Exchange List')
+        msg = str('[%s] No providers could retrieve data.' % se_short)
         log.log_into_db(level=log_level, context=context, message=msg)
         return {}
 
@@ -72,7 +72,7 @@ class ProviderManager:
 
         log_level = 'info'
         context = self.get_context()
-        msg = str('No providers could retrieve data on symbol \'%s\'' % se_short)
+        msg = str('[%s] No providers could retrieve data.' % se_short)
         log.log_into_db(level=log_level, context=context, message=msg)
         return {}
 
@@ -112,7 +112,7 @@ class ProviderManager:
 
         log_level = 'info'
         context = self.get_context()
-        msg = str('No providers could retrieve data on symbol \'%s\'' % asset_symbol)
+        msg = str('[%s] No providers could retrieve data.' % asset_symbol)
         log.log_into_db(level=log_level, context=context, message=msg)
         return {}
 
@@ -129,7 +129,7 @@ class ProviderManager:
 
         log_level = 'info'
         context = self.get_context()
-        msg = str('No providers could retrieve data on symbol \'%s\'' % asset_symbol)
+        msg = str('[%s] No providers could retrieve data.' % asset_symbol)
         log.log_into_db(level=log_level, context=context, message=msg)
         return {}
 

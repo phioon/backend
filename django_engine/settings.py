@@ -14,9 +14,13 @@ GAE_QUEUES = {
     'market-eod': {
         'name': 'market-eod',
         'location': 'southamerica-east1'
+    },
+    'market-realtime': {
+        'name': 'market-realtime',
+        'location': 'southamerica-east1'
     }
 }
-MARKET_API_BASE = 'https://backend.phioon.com/api/market/'
+MARKET_API_BASE = 'https://backend.phioon.com/api/market/'      # Used only to build tasks for GCloud
 MARKET_SE_LIST = ['BVMF']
 
 if os.getenv('GAE_APPLICATION', None):
