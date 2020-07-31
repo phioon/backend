@@ -279,8 +279,6 @@ class ProviderManager:
                 result.append(k)
             elif not v['close'] and k not in d_raws:
                 result.append(k)
-            elif not v['volume'] and k not in d_raws:
-                result.append(k)
 
         return result
 
