@@ -998,6 +998,8 @@ class D_setup(models.Model):
     asset_setup = models.CharField(max_length=64, db_index=True)  # (PETR4.SAO_phibo_1292_up)
     tc = models.ForeignKey(TechnicalCondition, on_delete=models.CASCADE)
 
+    is_public = models.BooleanField(default=False)
+
     started_on = models.CharField(max_length=32, null=True)
     ended_on = models.CharField(max_length=32, null=True)
     is_success = models.BooleanField(null=True)

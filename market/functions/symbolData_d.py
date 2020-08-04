@@ -1,3 +1,4 @@
+from django_engine import settings
 from market import managers
 from market.functions import ema, roc
 from market.functions import utils as phioon_utils
@@ -625,6 +626,15 @@ def updateSetupSummary(symbol):
         else:
             setups[setup_id]['has_position_open'] = True
 
+        gain_count = setups[setup_id]['gain_count']
+        total_count = setups[setup_id]['gain_count'] + setups[setup_id]['loss_count']
+        success_rate = phioon_utils.percentage(gain_count, total_count, decimals=1, if_denominator_is_zero=0)
+
+        # Determine if setup will be visible at this point of time
+        if success_rate >= settings.MARKET_MIN_SUCCESS_RATE:
+            setup.is_public = True
+            setup.save()
+
     for [setup_id, data] in setups.items():
         asset_setup = str(symbol + '_' + setup_id)
         obj_tc = data['tc']
@@ -633,13 +643,11 @@ def updateSetupSummary(symbol):
         occurrencies = data['occurrencies']
         gain_count = data['gain_count']
         loss_count = data['loss_count']
+        total_count = gain_count + loss_count
         duration_gain_sum = data['duration_gain_sum']
         duration_loss_sum = data['duration_loss_sum']
 
-        if gain_count + loss_count > 0:
-            success_rate = round(gain_count / (gain_count + loss_count) * 100, 1)
-        else:
-            success_rate = 0
+        success_rate = phioon_utils.percentage(gain_count, total_count, decimals=1, if_denominator_is_zero=0)
 
         avg_duration_gain = round(duration_gain_sum / gain_count, 0) if gain_count > 0 else None
         avg_duration_loss = round(duration_loss_sum / loss_count, 0) if loss_count > 0 else None
