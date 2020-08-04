@@ -394,10 +394,10 @@ class TechnicalCondition(models.Model):
         if pv305 is None:
             return None
 
-        min_limit_periods_ago = 0.95786      # 4.23%
-        max_limit_periods_ago = 1.04235      # 4.23%
-        range_min = 0.98786                  # 1.214%
-        range_max = 1.01214                  # 1.214%
+        min_limit_periods_ago = 0.95786  # 4.23%
+        max_limit_periods_ago = 1.04235  # 4.23%
+        range_min = 0.98786  # 1.214%
+        range_max = 1.01214  # 1.214%
 
         low = lowList[last_index]
         high = highList[last_index]
@@ -437,10 +437,10 @@ class TechnicalCondition(models.Model):
                     pv1292_range_min <= low <= pv1292_range_max):
                 return 1292
             elif (lowest_close_3p >= pv305_limit_min and
-                    pv305_range_min <= low <= pv305_range_max):
+                  pv305_range_min <= low <= pv305_range_max):
                 return 305
             elif (lowest_close_3p >= pv72_limit_min and
-                    pv72_range_min <= low <= pv72_range_max):
+                  pv72_range_min <= low <= pv72_range_max):
                 return 72
 
         # SELL
@@ -449,10 +449,10 @@ class TechnicalCondition(models.Model):
                     pc1292_range_min <= high <= pc1292_range_max):
                 return -1292
             elif (highest_close_3p <= pc305_limit_max and
-                    pc305_range_min <= high <= pc305_range_max):
+                  pc305_range_min <= high <= pc305_range_max):
                 return -305
             elif (highest_close_3p <= pc72_limit_max and
-                    pc72_range_min <= high <= pc72_range_max):
+                  pc72_range_min <= high <= pc72_range_max):
                 return -72
 
     @staticmethod
@@ -566,7 +566,8 @@ class Asset(models.Model):
 
     asset_symbol = models.CharField(max_length=32, primary_key=True)
     asset_volume_avg = models.IntegerField(null=True, verbose_name='Volume average over last 10 days.')
-    is_considered_for_analysis = models.BooleanField(default=False, verbose_name='Is considered for Technical Analysis?')
+    is_considered_for_analysis = models.BooleanField(default=False,
+                                                     verbose_name='Is considered for Technical Analysis?')
 
     def __str__(self):
         return self.asset_symbol
@@ -622,9 +623,11 @@ class Asset(models.Model):
                 profile.update_asset_profile(asset_symbol)
 
     # D_Raw.updateAsset calls it every day
-    def updateStats(self, symbol):
+    def updateStats(self, symbol, lastXrows):
         self.updateVolumeAvg(symbol)
-        self.runChecklist(symbol)
+        lastXrows = self.runChecklist(symbol, lastXrows)
+
+        return lastXrows
 
     def updateVolumeAvg(self, symbol):
         # Ordered by 'd_datetime' DESCENDENT
@@ -643,27 +646,44 @@ class Asset(models.Model):
                     asset_volume_avg=vol)
         self.updateOrCreateObj(obj)
 
-    def runChecklist(self, symbol):
+    def runChecklist(self, symbol, lastXrows):
         asset = Asset.objects.get(asset_symbol=symbol)
 
         # Checking
         volAvg = asset.asset_volume_avg  # Check 01: Volume Avg
         # ---------------------
 
-        if volAvg < 100000:
-            self.set_consideracy_for_analysis(symbol, False)
-        elif asset.is_considered_for_analysis is False:       # It will set to False only if it's True now.
-            self.set_consideracy_for_analysis(symbol, True)
+        is_considered_for_analysis = asset.is_considered_for_analysis
+
+        if asset.stockExchange.country_code == asset.profile.country_code:
+            if volAvg >= 100000:
+                is_considered_for_analysis = True
+            else:
+                is_considered_for_analysis = False
+        else:
+            # It's a foreign asset
+            if volAvg >= 1500:
+                is_considered_for_analysis = True
+            else:
+                is_considered_for_analysis = False
+
+        if asset.is_considered_for_analysis != is_considered_for_analysis:
+            asset.is_considered_for_analysis = is_considered_for_analysis
+            asset.save()
+
+            if is_considered_for_analysis:
+                # If asset was not considered before and now it become considered,
+                # it doesn't matter what is the current lastXrows value, bring data from scratch
+                # And let D_raw know next dependencies should run with the new lastXrows value.
+                lastXrows = 10000
+                symbolData_d.updateRaw(symbol, lastXrows)
+
+        return lastXrows
 
     def updateOrCreateObj(self, obj):
         if obj.asset_volume_avg is not None:
             Asset.objects.update_or_create(asset_symbol=obj.asset_symbol,
                                            defaults={'asset_volume_avg': obj.asset_volume_avg})
-
-    def set_consideracy_for_analysis(self, symbol, value=True):
-        Asset.objects.update_or_create(
-            asset_symbol=symbol,
-            defaults={'is_considered_for_analysis': value})
 
 
 class Profile(models.Model):
@@ -775,7 +795,7 @@ class D_raw(models.Model):
         tc = D_technicalCondition()
         setup = D_setup()
 
-        a.updateStats(symbol=symbol)
+        lastXrows = a.updateStats(symbol=symbol, lastXrows=lastXrows)
         pvpc.updateAsset(symbol=symbol, lastXrows=lastXrows)
         ema.updateAsset(symbol=symbol, lastXrows=lastXrows)
         roc.updateAsset(symbol=symbol, lastXrows=lastXrows)
@@ -979,17 +999,17 @@ class D_technicalCondition(models.Model):
         for x in range(len(objs)):
             D_technicalCondition.objects.update_or_create(asset_datetime=objs[x].asset_datetime,
                                                           defaults={
-                                                    'd_raw': objs[x].d_raw,
+                                                              'd_raw': objs[x].d_raw,
 
-                                                    'pivot': objs[x].pivot,
-                                                    'low_ema_btl': objs[x].low_ema_btl,
-                                                    'high_ema_btl': objs[x].high_ema_btl,
-                                                    'emaroc_btl': objs[x].emaroc_btl,
-                                                    'ema_range': objs[x].ema_range,
-                                                    'ema_trend': objs[x].ema_trend,
-                                                    'ema_test': objs[x].ema_test,
-                                                    'phibo_alignment': objs[x].phibo_alignment,
-                                                    'phibo_test': objs[x].phibo_test})
+                                                              'pivot': objs[x].pivot,
+                                                              'low_ema_btl': objs[x].low_ema_btl,
+                                                              'high_ema_btl': objs[x].high_ema_btl,
+                                                              'emaroc_btl': objs[x].emaroc_btl,
+                                                              'ema_range': objs[x].ema_range,
+                                                              'ema_trend': objs[x].ema_trend,
+                                                              'ema_test': objs[x].ema_test,
+                                                              'phibo_alignment': objs[x].phibo_alignment,
+                                                              'phibo_test': objs[x].phibo_test})
 
 
 class D_setup(models.Model):
@@ -997,6 +1017,8 @@ class D_setup(models.Model):
     asset_datetime = models.CharField(max_length=64, unique=True, db_index=True)  # (PETR4.SAO_20191231000000)
     asset_setup = models.CharField(max_length=64, db_index=True)  # (PETR4.SAO_phibo_1292_up)
     tc = models.ForeignKey(TechnicalCondition, on_delete=models.CASCADE)
+
+    is_public = models.BooleanField(default=False)
 
     started_on = models.CharField(max_length=32, null=True)
     ended_on = models.CharField(max_length=32, null=True)

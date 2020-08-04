@@ -97,8 +97,6 @@ class D_RawList(generics.ListAPIView):
 
 
 # Integration between Backend and Frontend.
-# 'min_success_rate' determines which Setups users will receive as Recommendation.
-min_success_rate = 50
 
 
 class D_SetupList(generics.ListAPIView):
@@ -112,12 +110,8 @@ class D_SetupList(generics.ListAPIView):
         if dateFrom is None:
             dateFrom = str(datetime.today().date() - timedelta(days=90))
 
-        asset_setup_list = list(D_setupSummary.objects.filter(asset_symbol__stockExchange__exact=stockExchange,
-                                                              success_rate__gte=min_success_rate)
-                                .values_list('asset_setup', flat=True))
-
         setups = D_setup.objects.filter(
-            Q(asset_setup__in=asset_setup_list),
+            Q(d_raw__asset_symbol__stockExchange__exact=stockExchange, is_public=True),
             Q(ended_on__isnull=True) | Q(started_on__gte=dateFrom))
 
         return setups
@@ -129,9 +123,18 @@ class D_SetupSummaryList(generics.ListAPIView):
 
     def get_queryset(self):
         stockExchange = self.request.query_params.get('stockExchange')
+        dateFrom = self.request.query_params.get('dateFrom')
 
-        setup_summary = D_setupSummary.objects.filter(asset_symbol__stockExchange__exact=stockExchange,
-                                                      success_rate__gte=min_success_rate)
+        if dateFrom is None:
+            dateFrom = str(datetime.today().date() - timedelta(days=90))
+
+        setups = list(D_setup.objects
+                      .filter(Q(d_raw__asset_symbol__stockExchange__exact=stockExchange, is_public=True) |
+                              Q(ended_on__isnull=True) | Q(started_on__gte=dateFrom))
+                      .values_list('asset_setup', flat=True)
+                      .distinct())
+
+        setup_summary = D_setupSummary.objects.filter(asset_setup__in=setups)
 
         return setup_summary
 
