@@ -23,7 +23,7 @@ GAE_QUEUES = {
 MARKET_API_BASE = 'https://backend.phioon.com/api/market/'      # Used only to build tasks for GCloud
 MARKET_SE_LIST = ['BVMF']
 
-MARKET_MIN_SUCCESS_RATE = 60        # Determines which Setups users will receive as Recommendation.
+MARKET_MIN_SUCCESS_RATE = 55        # Determines which Setups users will receive as Recommendation.
 
 if os.getenv('GAE_APPLICATION', None):
     # [PRD] environment
