@@ -141,8 +141,9 @@ class ProviderManager:
             'initial_provider': provider_id,
             'initial_data': phioon_utils.order_by_asc(data, 'datetime'),
             'initial_inconsistencies': [],
-            'trusted_data': None,
-            'validated_data': None
+            'trusted_provider': None,
+            'trusted_data': [],
+            'validated_data': []
         }
 
         if last_x_periods > 0:
@@ -162,6 +163,9 @@ class ProviderManager:
             # There are inconsistencies to be checked
             serializer = self.replace_inconsistencies_with_trusted_data(serializer,
                                                                         inconsistent_dates)
+
+            if len(serializer['trusted_data']) == 0:
+                serializer['trusted_data'] = serializer['initial_data']
             serializer['validated_data'] = self.validate_trusted_data(serializer)
         else:
             # No inconsistencies were found
@@ -297,21 +301,22 @@ class ProviderManager:
         }
 
         for k, v in data.items():
-            # open
-            if self.is_roc_too_high(yesterday, v, d_raws, pct_roc_threshold, 'open'):
-                result.append(k)
+            if k not in d_raws:
+                # open
+                if self.is_roc_too_high(yesterday, v, d_raws, pct_roc_threshold, 'open'):
+                    result.append(k)
 
-            # high
-            elif self.is_roc_too_high(yesterday, v, d_raws, pct_roc_threshold, 'high'):
-                result.append(k)
+                # high
+                elif self.is_roc_too_high(yesterday, v, d_raws, pct_roc_threshold, 'high'):
+                    result.append(k)
 
-            # low
-            elif self.is_roc_too_high(yesterday, v, d_raws, pct_roc_threshold, 'low'):
-                result.append(k)
+                # low
+                elif self.is_roc_too_high(yesterday, v, d_raws, pct_roc_threshold, 'low'):
+                    result.append(k)
 
-            # close
-            elif self.is_roc_too_high(yesterday, v, d_raws, pct_roc_threshold, 'close'):
-                result.append(k)
+                # close
+                elif self.is_roc_too_high(yesterday, v, d_raws, pct_roc_threshold, 'close'):
+                    result.append(k)
 
             # Update yesterday's data
             if k not in result:
@@ -369,11 +374,8 @@ class ProviderManager:
                     for raw_data in date_as_key.values():
                         serializer['trusted_data'].append(raw_data)
 
-                else:
-                    serializer['trusted_data'] = serializer['initial_data']
-
-                # Once it found a trusted data, quit iteration
-                break
+                    # Once it found a trusted data, quit iteration
+                    break
 
         return serializer
 
