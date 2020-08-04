@@ -176,6 +176,7 @@ class ProviderManager:
         inconsistencies = self.get_eod_inconsistencies(serializer,
                                                        provider_id=serializer['trusted_provider'],
                                                        data_key='trusted_data')
+
         if inconsistencies['amount'] > 0:
             for data in serializer['trusted_data']:
                 if data['datetime'] not in inconsistencies['result']['empty_fields']:

@@ -225,7 +225,10 @@ def run_raw_data_se_short(request, se_short, last_x_rows=5, apiKey=None):
             stockExchange=se_short
         )
 
-        if today.weekday() in [6]:
+        if today.weekday() in [0]:
+            # It's Monday, so increase tolerance
+            delta_days_tolerance = 4
+        elif today.weekday() in [6]:
             # It's Sunday, so increase tolerance
             delta_days_tolerance = 3
         else:
