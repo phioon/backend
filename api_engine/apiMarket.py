@@ -226,13 +226,13 @@ def run_raw_data_se_short(request, se_short, last_x_rows=5, apiKey=None):
         )
 
         if today.weekday() in [0]:
-            # It's Monday, so increase tolerance
+            # Tolerance if it's Monday
             delta_days_tolerance = 4
         elif today.weekday() in [6]:
-            # It's Sunday, so increase tolerance
+            # Tolerance if it's Sunday
             delta_days_tolerance = 3
         else:
-            # Default used for Mon, Tue, Wed, Thu, Sex and Sat
+            # Tolerance for Tue, Wed, Thu, Sex and Sat
             delta_days_tolerance = 2
 
         for asset in assets:
@@ -251,6 +251,7 @@ def run_raw_data_se_short(request, se_short, last_x_rows=5, apiKey=None):
                 sync_list.append(asset)
                 last_periods = 0
 
+        for asset in sync_list:
             url = settings.MARKET_API_BASE + 'task/runRaw/D/asset/'
             url += asset.asset_symbol + '/'
             url += str(last_periods) + '/'
