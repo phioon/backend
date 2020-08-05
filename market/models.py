@@ -649,20 +649,16 @@ class Asset(models.Model):
     def runChecklist(self, symbol, lastXrows):
         asset = Asset.objects.get(asset_symbol=symbol)
 
-        # Checking
-        volAvg = asset.asset_volume_avg  # Check 01: Volume Avg
-        # ---------------------
-
         is_considered_for_analysis = asset.is_considered_for_analysis
 
         if asset.stockExchange.country_code == asset.profile.country_code:
-            if volAvg >= 100000:
+            if asset.asset_volume_avg >= 100000:
                 is_considered_for_analysis = True
             else:
                 is_considered_for_analysis = False
         else:
             # It's a foreign asset
-            if volAvg >= 1500:
+            if asset.asset_volume_avg >= 10000:
                 is_considered_for_analysis = True
             else:
                 is_considered_for_analysis = False
@@ -703,25 +699,36 @@ class Profile(models.Model):
         return self.asset_symbol
 
     def update_asset_profile(self, symbol):
+        # If Profile already exists, update only fields which are not filled yet.
         provider_manager = managers.ProviderManager()
         data = provider_manager.get_profile_data(asset_symbol=symbol)
 
         if data:
             asset = Asset.objects.get(asset_symbol=symbol)
+            try:
+                profile = Profile.objects.get(asset_symbol=symbol)
+            except Profile.DoesNotExist:
+                profile = Profile()
+                profile.asset_symbol = asset
+                profile.asset_label = data['asset_label']
 
-            if not data['country_code']:
-                data['country_code'] = asset.stockExchange.country_code
+            if not profile.country_code:
+                if data['country_code']:
+                    profile.country_code = data['country_code']
+                else:
+                    profile.country_code = asset.stockExchange.country_code
 
-            obj = Profile(asset_symbol=asset,
-                          asset_label=data['asset_label'],
-                          asset_name=data['asset_name'],
-                          country_code=data['country_code'],
-                          sector_id=data['sector_id'],
-                          sector_name=data['sector_name'],
-                          website=data['website'],
-                          business_summary=data['business_summary'])
+            if not profile.sector_id:
+                profile.sector_id = data['sector_id']
+                profile.sector_name = data['sector_name']
 
-            self.updateOrCreateObj(obj)
+            if not profile.website:
+                profile.website = data['website']
+
+            if not profile.business_summary:
+                profile.business_summary = data['business_summary']
+
+            profile.save()
 
     def updateOrCreateObj(self, obj):
         Profile.objects.update_or_create(

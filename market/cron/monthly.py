@@ -15,5 +15,5 @@ def update_asset_profile(symbol):
     if symbol not in assets:
         return
 
-    ap = Profile()
-    ap.update_asset_profile(symbol)
+    profile = Profile()
+    profile.update_asset_profile(symbol)
