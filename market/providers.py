@@ -176,17 +176,17 @@ class AlphaVantage:
 
 class MarketStack:
     id = 'market_stack'
-    api_assets_by_stock_exchange = str('http://api.marketstack.com/v1/exchanges/<se_short>/tickers?'
+    api_assets_by_stock_exchange = str('https://api.marketstack.com/v1/exchanges/<se_short>/tickers?'
                                        'access_key=<api_key>&'
                                        'limit=<limit>')
-    api_eod = str('http://api.marketstack.com/v1/tickers/<asset_symbol>/eod?'
+    api_eod = str('https://api.marketstack.com/v1/tickers/<asset_symbol>/eod?'
                   'access_key=<api_key>&'
                   'limit=<limit>')
-    api_realtime = str('http://api.marketstack.com/v1/intraday/latest?'
+    api_realtime = str('https://api.marketstack.com/v1/intraday/latest?'
                        'access_key=<api_key>&'
                        'exchange=<se_short>&'
                        'limit=<limit>')
-    api_stock_exchanges = str('http://api.marketstack.com/v1/exchanges/<se_short>?'
+    api_stock_exchanges = str('https://api.marketstack.com/v1/exchanges/<se_short>?'
                               'access_key=<api_key>&'
                               'limit=<limit>')
 
