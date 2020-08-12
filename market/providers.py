@@ -130,7 +130,7 @@ class Phioon:
             result['status'] = 404
         else:
             result['status'] = 200
-            result['data'] = self.prepare_stock_exchange_data(result['rdata']['data']['tickers'])
+            result['data'] = self.prepare_tickers_by_stock_exchange(result['rdata']['data']['tickers'])
 
         return result
 
