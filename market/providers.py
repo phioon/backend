@@ -42,9 +42,9 @@ def request_get_data(request, headers={}):
 class Phioon:
     id = 'phioon'
 
-    api_stock_exchanges = str(settings.PROVIDER_API_BASE + '/exchanges/<se_short>?'
+    api_stock_exchanges = str(settings.PROVIDER_API_BASE + 'exchanges/<se_short>?'
                               'api_key=<api_key>')
-    api_tickers_by_stock_exchange = str(settings.PROVIDER_API_BASE + '/exchanges/<se_short>/tickers/?'
+    api_tickers_by_stock_exchange = str(settings.PROVIDER_API_BASE + 'exchanges/<se_short>/tickers/?'
                                                                      'api_key=<api_key>')
 
     api_eod = str(settings.PROVIDER_API_BASE + 'tickers/<asset_symbol>/eod/?'
