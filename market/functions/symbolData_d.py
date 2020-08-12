@@ -190,25 +190,25 @@ def updateRoc(symbol, lastXrows):
                             % (symbol, len(adtList), len(closeEmaList)))
         return
 
-    df = pd.DataFrame(closeList)
-    roc_close2 = roc.getRocList(df[0], 1)  # Related to # periods behind
-    roc_close3 = roc.getRocList(df[0], 2)  # Related to # periods behind
+    df = pd.DataFrame(closeList)[0]
+    roc_close2 = roc.getRocList(df, 1)  # Related to # periods behind
+    roc_close3 = roc.getRocList(df, 2)  # Related to # periods behind
 
-    df = pd.DataFrame(highList)
-    roc_high2 = roc.getRocList(df[0], 1)  # Related to # periods behind
+    df = pd.DataFrame(highList)[0]
+    roc_high2 = roc.getRocList(df, 1)  # Related to # periods behind
 
-    df = pd.DataFrame(lowList)
-    roc_low2 = roc.getRocList(df[0], 1)  # Related to # periods behind
+    df = pd.DataFrame(lowList)[0]
+    roc_low2 = roc.getRocList(df, 1)  # Related to # periods behind
 
-    df = pd.DataFrame(closeEmaList)
-    roc_emaClose17 = roc.getRocList(df[:][0], 4 - 1)  # Related to # periods behind
-    roc_emaClose34 = roc.getRocList(df[:][1], 8 - 1)  # Related to # periods behind
-    roc_emaClose72 = roc.getRocList(df[:][2], 17 - 1)  # Related to # periods behind
-    roc_emaClose144 = roc.getRocList(df[:][3], 34 - 1)  # Related to # periods behind
-    roc_emaClose305 = roc.getRocList(df[:][4], 72 - 1)  # Related to # periods behind
-    roc_emaClose610 = roc.getRocList(df[:][5], 144 - 1)  # Related to # periods behind
-    roc_emaClose1292 = roc.getRocList(df[:][6], 305 - 1)  # Related to # periods behind
-    roc_emaClose2584 = roc.getRocList(df[:][7], 610 - 1)  # Related to # periods behind
+    df = pd.DataFrame(closeEmaList)[:]
+    roc_emaClose17 = roc.getRocList(df[0], 4 - 1)  # Related to # periods behind
+    roc_emaClose34 = roc.getRocList(df[1], 8 - 1)  # Related to # periods behind
+    roc_emaClose72 = roc.getRocList(df[2], 17 - 1)  # Related to # periods behind
+    roc_emaClose144 = roc.getRocList(df[3], 34 - 1)  # Related to # periods behind
+    roc_emaClose305 = roc.getRocList(df[4], 72 - 1)  # Related to # periods behind
+    roc_emaClose610 = roc.getRocList(df[5], 144 - 1)  # Related to # periods behind
+    roc_emaClose1292 = roc.getRocList(df[6], 305 - 1)  # Related to # periods behind
+    roc_emaClose2584 = roc.getRocList(df[7], 610 - 1)  # Related to # periods behind
 
     for x in range(len(adtList)):
         adt = adtList[x]
@@ -274,11 +274,40 @@ def updateVar(symbol, lastXrows):
         return
 
     for x in range(len(adtList)):
-        var_emaClose1734 = round((closeEmaList[x][0] - closeEmaList[x][1]) / closeEmaList[x][0] * 100, 3)
-        var_emaClose3472 = round((closeEmaList[x][1] - closeEmaList[x][2]) / closeEmaList[x][1] * 100, 3)
-        var_emaClose72144 = round((closeEmaList[x][2] - closeEmaList[x][3]) / closeEmaList[x][2] * 100, 3)
-        var_emaClose144305 = round((closeEmaList[x][3] - closeEmaList[x][4]) / closeEmaList[x][3] * 100, 3)
-        var_emaClose305610 = round((closeEmaList[x][4] - closeEmaList[x][5]) / closeEmaList[x][4] * 100, 3)
+        var_emaClose1734 = var_emaClose3472 = var_emaClose72144 = var_emaClose144305 = var_emaClose305610 = None
+
+        emaClose17 = closeEmaList[x][0]
+        emaClose34 = closeEmaList[x][1]
+        emaClose72 = closeEmaList[x][2]
+        emaClose144 = closeEmaList[x][3]
+        emaClose305 = closeEmaList[x][4]
+        emaClose610 = closeEmaList[x][5]
+
+        if emaClose17 and emaClose34:
+            var_emaClose1734 = phioon_utils.percentage((emaClose17 - emaClose34),
+                                                       emaClose17,
+                                                       decimals=3,
+                                                       if_denominator_is_zero=0)
+        if emaClose34 and emaClose72:
+            var_emaClose3472 = phioon_utils.percentage((emaClose34 - emaClose72),
+                                                       emaClose34,
+                                                       decimals=3,
+                                                       if_denominator_is_zero=0)
+        if emaClose72 and emaClose144:
+            var_emaClose72144 = phioon_utils.percentage((emaClose72 - emaClose144),
+                                                        emaClose72,
+                                                        decimals=3,
+                                                        if_denominator_is_zero=0)
+        if emaClose144 and emaClose305:
+            var_emaClose144305 = phioon_utils.percentage((emaClose144 - emaClose305),
+                                                         emaClose144,
+                                                         decimals=3,
+                                                         if_denominator_is_zero=0)
+        if emaClose305 and emaClose610:
+            var_emaClose305610 = phioon_utils.percentage((emaClose305 - emaClose610),
+                                                         emaClose305,
+                                                         decimals=3,
+                                                         if_denominator_is_zero=0)
 
         adt = adtList[x]
 
