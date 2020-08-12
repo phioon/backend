@@ -546,15 +546,23 @@ class StockExchange(models.Model):
         data = provider_manager.get_stock_exchange_data(se_short=se_short)
 
         if data:
-            StockExchange.objects.update_or_create(
-                se_short=data['se_short'],
-                defaults={
-                    'se_name': data['se_name'],
-                    'se_timezone': data['se_timezone'],
-                    'country_code': data['country_code'],
-                    'currency_code': data['currency_code'],
-                    'website': data['website']
-                })
+
+            try:
+                stock_exchange = StockExchange.objects.get(pk=se_short)
+            except StockExchange.DoesNotExist:
+                stock_exchange = StockExchange(pk=se_short)
+
+            stock_exchange.se_name = data['se_name']
+            stock_exchange.country_code = data['country_code']
+            stock_exchange.currency_code = data['currency_code']
+            stock_exchange.se_timezone = data['se_timezone']
+            stock_exchange.website = data['website']
+            if 'se_startTime' in data:
+                stock_exchange.se_startTime = data['se_startTime']
+            if 'se_endTime' in data:
+                stock_exchange.se_endTime = data['se_endTime']
+
+            stock_exchange.save()
 
 
 class Asset(models.Model):
@@ -651,13 +659,13 @@ class Asset(models.Model):
 
         is_considered_for_analysis = asset.is_considered_for_analysis
 
-        if asset.stockExchange.country_code == asset.profile.country_code:
+        if hasattr(asset, 'profile') and asset.stockExchange.country_code == asset.profile.country_code:
             if asset.asset_volume_avg >= 100000:
                 is_considered_for_analysis = True
             else:
                 is_considered_for_analysis = False
         else:
-            # It's a foreign asset
+            # It doesn't have a Profile or it's a foreign asset
             if asset.asset_volume_avg >= 10000:
                 is_considered_for_analysis = True
             else:
@@ -767,12 +775,19 @@ class Realtime(models.Model):
 
         if data:
             realtime.last_trade_time = data['last_trade_time']
-            realtime.open = data['open']
-            realtime.high = data['high']
-            realtime.low = data['low']
-            realtime.price = data['price']
-            realtime.volume = data['volume']
-            realtime.pct_change = data['pct_change']
+            if data['open']:
+                realtime.open = data['open']
+            if data['high']:
+                realtime.high = data['high']
+            if data['low']:
+                realtime.low = data['low']
+            if data['price']:
+                realtime.price = data['price']
+            if data['volume']:
+                realtime.volume = data['volume']
+            if data['pct_change']:
+                realtime.pct_change = data['pct_change']
+
             realtime.save()
 
 

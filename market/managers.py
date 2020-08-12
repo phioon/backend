@@ -1,21 +1,31 @@
-import inspect
+from django_engine import settings
 from .functions import utils as phioon_utils
 from . import providers
+import inspect
 
 
 class ProviderManager:
     # Providers instances are ordered by priority
-    providers_by_action = {
+    providers_by_context = {
         'assets_by_stock_exchange': [providers.MarketStack(), ],
-        'eod': [providers.MarketStack(),
-                providers.AlphaVantage(),
-                providers.Yahoo()],
+        'eod': [providers.Yahoo(),
+                providers.MarketStack(),
+                providers.AlphaVantage()],
         'profile': [providers.Yahoo(), ],
         'realtime': [providers.Yahoo(), ],
         'stock_exchange': [providers.MarketStack(), ],
     }
     trusted_providers = {
-        'eod': [providers.Yahoo(), ]
+        'eod': [providers.Yahoo(),
+                providers.MarketStack()]
+    }
+
+    phioon_as_provider = {
+        'assets_by_stock_exchange': [providers.Phioon(), ],
+        'eod': [providers.Phioon(), ],
+        'profile': [providers.Phioon(), ],
+        'realtime': [providers.Phioon(), ],
+        'stock_exchange': [providers.Phioon(), ],
     }
 
     # utils
@@ -24,9 +34,23 @@ class ProviderManager:
         caller_name = inspect.stack()[1].function
         return str('%s.%s' % (class_name, caller_name))
 
+    def get_providers_by_context(self, context):
+        if settings.PHIOON_AS_PROVIDER:
+            provider_list = self.phioon_as_provider[context]       # DEV
+        else:
+            provider_list = self.providers_by_context[context]      # PRD
+        return provider_list
+
+    def get_trusted_providers(self, context):
+        if settings.PHIOON_AS_PROVIDER:
+            provider_list = self.phioon_as_provider[context]        # DEV
+        else:
+            provider_list = self.trusted_providers[context]         # PRD
+        return provider_list
+
     # services
     def get_stock_exchange_list(self):
-        for provider in self.providers_by_action['stock_exchange']:
+        for provider in self.get_providers_by_context('stock_exchange'):
             result = provider.get_stock_exchange_list()
 
             if result['status'] == 200:
@@ -43,7 +67,7 @@ class ProviderManager:
         return {}
 
     def get_stock_exchange_data(self, se_short):
-        for provider in self.providers_by_action['stock_exchange']:
+        for provider in self.get_providers_by_context('stock_exchange'):
             result = provider.get_stock_exchange_data(se_short=se_short)
 
             if result['status'] == 200:
@@ -60,8 +84,8 @@ class ProviderManager:
         return {}
 
     def get_assets_by_stock_exchange(self, se_short=None):
-        for provider in self.providers_by_action['assets_by_stock_exchange']:
-            result = provider.get_assets_by_stock_exchange(se_short)
+        for provider in self.get_providers_by_context('assets_by_stock_exchange'):
+            result = provider.get_tickers_by_stock_exchange(se_short)
 
             if result['status'] == 200:
                 return result['data']
@@ -76,31 +100,8 @@ class ProviderManager:
         log.log_into_db(level=log_level, context=context, message=msg)
         return {}
 
-    def get_eod_data(self, asset_symbol, last_x_periods):
-        for provider in self.providers_by_action['eod']:
-            result = provider.get_eod_data(asset_symbol, last_x_periods)
-
-            if result['status'] == 200:
-                result['validated_data'] = self.validate_initial_data(asset_symbol,
-                                                                      provider.id,
-                                                                      result['data'],
-                                                                      last_x_periods)
-                return result['validated_data']
-            else:
-                self.log_empty_data(asset_symbol, provider.id)
-
-        # Went through all providers and couldn't get a validated data.
-        from market.models import Logging
-        log = Logging()
-
-        log_level = 'info'
-        context = self.get_context()
-        msg = str('[%s] No providers could retrieve data.' % asset_symbol)
-        log.log_into_db(level=log_level, context=context, message=msg)
-        return {}
-
     def get_profile_data(self, asset_symbol):
-        for provider in self.providers_by_action['profile']:
+        for provider in self.get_providers_by_context('profile'):
             result = provider.get_profile_data(asset_symbol)
 
             if result['status'] == 200:
@@ -117,11 +118,34 @@ class ProviderManager:
         return {}
 
     def get_realtime_data(self, asset_symbol):
-        for provider in self.providers_by_action['realtime']:
+        for provider in self.get_providers_by_context('realtime'):
             result = provider.get_realtime_data(asset_symbol)
 
             if result['status'] == 200:
                 return result['data']
+
+        # Went through all providers and couldn't get a validated data.
+        from market.models import Logging
+        log = Logging()
+
+        log_level = 'info'
+        context = self.get_context()
+        msg = str('[%s] No providers could retrieve data.' % asset_symbol)
+        log.log_into_db(level=log_level, context=context, message=msg)
+        return {}
+
+    def get_eod_data(self, asset_symbol, last_x_periods):
+        for provider in self.get_providers_by_context('eod'):
+            result = provider.get_eod_data(asset_symbol, last_x_periods)
+
+            if result['status'] == 200:
+                result['validated_data'] = self.validate_initial_data(asset_symbol,
+                                                                      provider.id,
+                                                                      result['data'],
+                                                                      last_x_periods)
+                return result['validated_data']
+            else:
+                self.log_empty_data(asset_symbol, provider.id)
 
         # Went through all providers and couldn't get a validated data.
         from market.models import Logging
@@ -353,7 +377,7 @@ class ProviderManager:
 
         date_as_key = phioon_utils.get_field_as_unique_key(serializer['initial_data'], 'datetime')
 
-        for provider in self.trusted_providers['eod']:
+        for provider in self.get_trusted_providers('eod'):
             if provider.id == serializer['initial_provider']:
                 # Initial provider is the same as current trusted provider
                 continue

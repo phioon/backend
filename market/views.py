@@ -1,4 +1,4 @@
-from django.db.models import Q
+from django.db.models import Q, Max
 from django.http import HttpResponse
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework import generics, permissions
@@ -7,9 +7,10 @@ from rest_framework.response import Response
 
 from django_engine.functions import generic
 from django_engine import settings
-from api_engine import serializers
-from market.models import StockExchange, Asset, D_raw, TechnicalCondition, D_setup, D_setupSummary
-from market.cron import m15, daily, monthly, onDemand
+from . import serializers
+from .models import StockExchange, Asset, TechnicalCondition
+from .models import D_raw, D_pvpc, D_ema, D_setup, D_setupSummary
+from .cron import m15, daily, monthly, onDemand
 
 from datetime import datetime, timedelta
 from time import time
@@ -70,7 +71,6 @@ class AssetList(generics.ListAPIView):
             return Asset.objects.filter(asset_symbol__in=assets)
 
 
-# Integration between Backend and Frontend
 class D_RawList(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -96,7 +96,66 @@ class D_RawList(generics.ListAPIView):
                                     d_datetime__lte=dateTo + ' 23:59:59')
 
 
-# Integration between Backend and Frontend.
+class D_phiboLatestList(generics.ListAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = serializers.D_pvpcSerializer
+
+    def get_queryset(self):
+        stockExchange = self.request.query_params.get('stockExchange')
+        assets = self.request.query_params.get('assets')
+        result = []
+
+        if stockExchange:
+            latest_datetime_by_asset = (D_raw.objects.filter(asset_symbol__stockExchange__exact=stockExchange)
+                                        .values('asset_symbol')
+                                        .annotate(latest_datetime=Max('d_datetime')))
+        else:
+            assets = assets.split(',')
+            latest_datetime_by_asset = (D_raw.objects.filter(asset_symbol__in=assets)
+                                        .values('asset_symbol')
+                                        .annotate(latest_datetime=Max('d_datetime')))
+
+        for obj in latest_datetime_by_asset:
+            try:
+                latest_data = D_pvpc.objects.get(d_raw__asset_symbol=obj['asset_symbol'],
+                                                 d_raw__d_datetime__exact=obj['latest_datetime'])
+            except D_pvpc.DoesNotExist:
+                continue
+
+            result.append(latest_data)
+
+        return result
+
+
+class D_emaLatestList(generics.ListAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = serializers.D_emaSerializer
+
+    def get_queryset(self):
+        stockExchange = self.request.query_params.get('stockExchange')
+        assets = self.request.query_params.get('assets')
+        result = []
+
+        if stockExchange:
+            latest_datetime_by_asset = (D_raw.objects.filter(asset_symbol__stockExchange__exact=stockExchange)
+                                        .values('asset_symbol')
+                                        .annotate(latest_datetime=Max('d_datetime')))
+        else:
+            assets = assets.split(',')
+            latest_datetime_by_asset = (D_raw.objects.filter(asset_symbol__in=assets)
+                                        .values('asset_symbol')
+                                        .annotate(latest_datetime=Max('d_datetime')))
+
+        for obj in latest_datetime_by_asset:
+            try:
+                latest_data = D_ema.objects.get(d_raw__asset_symbol=obj['asset_symbol'],
+                                                d_raw__d_datetime__exact=obj['latest_datetime'])
+            except D_pvpc.DoesNotExist:
+                continue
+
+            result.append(latest_data)
+
+        return result
 
 
 class D_SetupList(generics.ListAPIView):
@@ -149,6 +208,34 @@ def update_stock_exchange_list(request, apiKey=None):
         duration = str(round(time() - st, 2))
         obj_res = {'message': "Task '%s' took %s seconds to complete."
                               % ('update_stock_exchange_list', duration)}
+        return Response(obj_res)
+    else:
+        return Response(status=status.HTTP_403_FORBIDDEN)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def run_offline_raw_data_se_short(request, se_short, apiKey=None):
+    if apiKey == settings.API_KEY:
+        client = tasks_v2.CloudTasksClient()
+        parent = client.queue_path(settings.GAE_PROJECT,
+                                   settings.GAE_QUEUES['market-eod']['location'],
+                                   settings.GAE_QUEUES['market-eod']['name'])
+        assets = Asset.objects.filter(stockExchange=se_short)
+
+        for asset in assets:
+            url = settings.MARKET_API_BASE + 'task/offline/runRaw/D/asset/'
+            url += asset.asset_symbol + '/'
+            url += settings.API_KEY
+            task = {
+                'http_request': {
+                    'http_method': 'GET',
+                    'url': url}}
+            client.create_task(parent, task)
+
+        obj_res = {
+            'context': 'apiMarket.run_raw_data_se_short',
+            'message': "[%s] Assets to be updated: %s" % (se_short, assets)}
         return Response(obj_res)
     else:
         return Response(status=status.HTTP_403_FORBIDDEN)
@@ -230,13 +317,13 @@ def run_raw_data_se_short(request, se_short, last_x_rows=5, apiKey=None):
 
         if today.weekday() in [0]:
             # Tolerance if it's Monday
-            delta_days_tolerance = 4
+            delta_days_tolerance = 3
         elif today.weekday() in [6]:
             # Tolerance if it's Sunday
-            delta_days_tolerance = 3
+            delta_days_tolerance = 2
         else:
             # Tolerance for Tue, Wed, Thu, Sex and Sat
-            delta_days_tolerance = 2
+            delta_days_tolerance = 1
 
         for asset in assets:
             draws = asset.draws

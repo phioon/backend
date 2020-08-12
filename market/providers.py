@@ -1,6 +1,7 @@
 import json
 import requests
 import inspect
+from django_engine import settings
 from market.functions import utils
 
 
@@ -38,6 +39,256 @@ def request_get_data(request, headers={}):
 
 
 # Provider Classes
+class Phioon:
+    id = 'phioon'
+
+    api_stock_exchanges = str(settings.PROVIDER_API_BASE + '/exchanges/<se_short>?'
+                              'api_key=<api_key>')
+    api_tickers_by_stock_exchange = str(settings.PROVIDER_API_BASE + '/exchanges/<se_short>/tickers/?'
+                                                                     'api_key=<api_key>')
+
+    api_eod = str(settings.PROVIDER_API_BASE + 'tickers/<asset_symbol>/eod/?'
+                                               'limit=<limit>&'
+                                               'api_key=<api_key>')
+    api_profile = str(settings.PROVIDER_API_BASE + 'tickers/<asset_symbol>/profile/?'
+                                                   'api_key=<api_key>')
+    api_realtime = str(settings.PROVIDER_API_BASE + 'tickers/<asset_symbol>/realtime/?'
+                                                    'api_key=<api_key>')
+
+    api_key = settings.API_KEY
+
+    # utils
+    def get_context(self):
+        class_name = self.__class__.__name__
+        caller_name = inspect.stack()[1].function
+        return str('%s.%s' % (class_name, caller_name))
+
+    def convert_symbol(self, asset_symbol):
+        # Once Phioon is the provider, converting is not needed.
+        # Function is here just to keep a pattern. Maybe that's not needed, idk...
+        return asset_symbol
+
+    def get_asset_label(self, asset_symbol):
+        asset_label = asset_symbol
+        if '.' in asset_symbol:
+            asset_label = asset_symbol[:asset_symbol.rindex('.')]
+        return asset_label
+
+    def get_sector_id(self, sector_name):
+        sector_id = str(sector_name).lower()
+        sector_id = sector_id.replace(' ', '_')
+        return sector_id
+
+    # services
+    def get_stock_exchange_list(self):
+        # Get details for a specific Stock Exchange
+        result = {'status': None, 'data': None}
+
+        request = self.api_stock_exchanges
+        request = request.replace('<se_short>', '')
+        request = request.replace('<api_key>', self.api_key)
+
+        result['rdata'] = request_get_data(request)
+
+        if 'error' in result['rdata']:
+            result['status'] = 404
+        else:
+            result['status'] = 200
+            result['data'] = self.prepare_stock_exchange_list(result['rdata']['data'])
+
+        return result
+
+    def get_stock_exchange_data(self, se_short):
+        # Get details for a specific Stock Exchange
+        result = {'status': None, 'data': None}
+
+        request = self.api_stock_exchanges
+        request = request.replace('<se_short>', se_short)
+        request = request.replace('<api_key>', self.api_key)
+
+        result['rdata'] = request_get_data(request)
+
+        if 'error' in result['rdata']:
+            result['status'] = 404
+        else:
+            result['status'] = 200
+            result['data'] = self.prepare_stock_exchange_data(result['rdata']['data'])
+
+        return result
+
+    def get_tickers_by_stock_exchange(self, se_short):
+        # Get details for a specific Stock Exchange
+        result = {'status': None, 'data': None}
+
+        request = self.api_tickers_by_stock_exchange
+        request = request.replace('<se_short>', se_short)
+        request = request.replace('<api_key>', self.api_key)
+
+        result['rdata'] = request_get_data(request)
+
+        if 'error' in result['rdata']:
+            result['status'] = 404
+        else:
+            result['status'] = 200
+            result['data'] = self.prepare_stock_exchange_data(result['rdata']['data']['tickers'])
+
+        return result
+
+    def get_eod_data(self, asset_symbol, last_x_periods):
+        # Get EOD data
+        result = {'status': None, 'data': None}
+        converted_symbol = self.convert_symbol(asset_symbol)
+
+        request = self.api_eod
+        request = request.replace('<asset_symbol>', converted_symbol)
+        request = request.replace('<api_key>', self.api_key)
+
+        request = request.replace('<limit>', str(last_x_periods))
+        result['rdata'] = request_get_data(request)
+
+        if 'message' in result['rdata'] or len(result['rdata']) == 0:
+            result['status'] = 404
+        else:
+            result['status'] = 200
+            result['data'] = self.prepare_eod_data(result['rdata']['data']['eod'])
+
+        return result
+
+    def get_profile_data(self, asset_symbol):
+        # Get profile data
+        result = {'status': None, 'data': None}
+        converted_symbol = self.convert_symbol(asset_symbol)
+
+        request = self.api_profile
+        request = request.replace('<asset_symbol>', converted_symbol)
+        request = request.replace('<api_key>', self.api_key)
+
+        result['rdata'] = request_get_data(request)
+
+        if len(result['rdata']) == 0:
+            result['status'] = 404
+        else:
+            result['status'] = 200
+            result['data'] = self.prepare_profile_data(asset_symbol, result['rdata']['data'])
+
+        return result
+
+    def get_realtime_data(self, asset_symbol):
+        # Get real-time data
+        # Get profile data
+        result = {'status': None, 'data': None}
+        converted_symbol = self.convert_symbol(asset_symbol)
+
+        request = self.api_realtime
+        request = request.replace('<asset_symbol>', converted_symbol)
+        request = request.replace('<api_key>', self.api_key)
+
+        result['rdata'] = request_get_data(request)
+
+        if len(result['rdata']) == 0:
+            result['status'] = 404
+        else:
+            result['status'] = 200
+            result['data'] = self.prepare_realtime_data(asset_symbol, result['rdata']['data'])
+
+        return result
+
+    # prepares
+    def prepare_stock_exchange_list(self, rdata):
+        # Prepares data to be recognized as table's fields.
+        data = []
+        for obj in rdata:
+            data.append({
+                'se_short': str(obj['symbol']),
+                'se_name': str(obj['name']),
+                'country_code': str(obj['country_code']),
+                'currency_code': str(obj['currency_code']),
+                'se_timezone': str(obj['timezone']),
+                'se_startTime': str(obj['market_start_time']),
+                'se_endTime': str(obj['market_end_time']),
+                'website': str(obj['website'])
+            })
+
+        return data
+
+    def prepare_stock_exchange_data(self, rdata):
+        # Prepares data to be recognized as table's fields.
+        data = {
+            'se_short': str(rdata['symbol']),
+            'se_name': str(rdata['name']),
+            'country_code': str(rdata['country_code']),
+            'currency_code': str(rdata['currency_code']),
+            'se_timezone': str(rdata['timezone']),
+            'se_startTime': str(rdata['market_start_time']),
+            'se_endTime': str(rdata['market_end_time']),
+            'website': str(rdata['website'])
+        }
+
+        return data
+
+    def prepare_tickers_by_stock_exchange(self, rdata):
+        # Prepares data to be recognized as table's fields.
+        data = []
+        for obj in rdata:
+            asset_symbol = obj['symbol']
+            data.append({'asset_symbol': asset_symbol})
+
+        return data
+
+    def prepare_eod_data(self, rdata):
+        # Prepares data to be recognized as table's fields.
+        data = []
+
+        for obj in rdata:
+            adj_pct = 1  # default value
+
+            if obj['adj_close'] and obj['close']:
+                adj_pct = utils.division(float(obj['adj_close']),
+                                         float(obj['close']),
+                                         decimals=5,
+                                         if_denominator_is_zero=1)
+
+            data.append({'datetime': str(obj['date']),
+                         'adj_pct': adj_pct,
+                         'open': obj['open'],
+                         'high': obj['high'],
+                         'low': obj['low'],
+                         'close': obj['adj_close'],
+                         'volume': obj['volume']})
+
+        return data
+
+    def prepare_profile_data(self, asset_symbol, rdata):
+        # Prepares data to be recognized as table's fields.
+        data = {
+            'asset_symbol': asset_symbol,
+            'asset_label': self.get_asset_label(asset_symbol),
+            'asset_name': str(rdata['asset_name']),
+            'country_code': str(rdata['country_code']),
+            'sector_id': self.get_sector_id(rdata['sector_name']),
+            'sector_name': str(rdata['sector_name']),
+            'website': str(rdata['website']),
+            'business_summary': str(rdata['business_summary'])
+        }
+
+        return data
+
+    def prepare_realtime_data(self, asset_symbol, rdata):
+        # Prepares data to be recognized as table's fields.
+        data = {
+            'asset_symbol': asset_symbol,
+            'last_trade_time': str(rdata['last_trade_time']),
+            'open': float(rdata['open']),
+            'high': float(rdata['high']),
+            'low': float(rdata['low']),
+            'price': float(rdata['price']),
+            'volume': float(rdata['volume']),
+            'pct_change': float(rdata['pct_change_day'])
+        }
+
+        return data
+
+
 class AlphaVantage:
     id = 'alpha_vantage'
     # https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol=VALE3.SAO&outputsize=full&apikey=3YQ322UE0X66IU2R
@@ -176,19 +427,20 @@ class AlphaVantage:
 
 class MarketStack:
     id = 'market_stack'
-    api_assets_by_stock_exchange = str('https://api.marketstack.com/v1/exchanges/<se_short>/tickers?'
-                                       'access_key=<api_key>&'
-                                       'limit=<limit>')
-    api_eod = str('https://api.marketstack.com/v1/tickers/<asset_symbol>/eod?'
+    api_stock_exchanges = str('http://api.marketstack.com/v1/exchanges/<se_short>?'
+                              'access_key=<api_key>&'
+                              'limit=<limit>')
+    api_tickers_by_stock_exchange = str('http://api.marketstack.com/v1/exchanges/<se_short>/tickers?'
+                                        'access_key=<api_key>&'
+                                        'limit=<limit>')
+    api_eod = str('http://api.marketstack.com/v1/tickers/<asset_symbol>/eod?'
+
                   'access_key=<api_key>&'
                   'limit=<limit>')
     api_realtime = str('https://api.marketstack.com/v1/intraday/latest?'
                        'access_key=<api_key>&'
                        'exchange=<se_short>&'
                        'limit=<limit>')
-    api_stock_exchanges = str('https://api.marketstack.com/v1/exchanges/<se_short>?'
-                              'access_key=<api_key>&'
-                              'limit=<limit>')
 
     api_key = '98e83dc6353ef87710b8b34e8197dedc'
     limit = '1000'
@@ -293,11 +545,11 @@ class MarketStack:
                 is_last_page = True
         return data
 
-    def get_assets_by_stock_exchange(self, se_short):
+    def get_tickers_by_stock_exchange(self, se_short):
         # Get list of assets by a given Stock Exchange
         result = {'status': None, 'data': None}
 
-        request = self.api_assets_by_stock_exchange
+        request = self.api_tickers_by_stock_exchange
         request = request.replace('<api_key>', self.api_key)
         request = request.replace('<limit>', self.limit)
         request = request.replace('<se_short>', se_short)
@@ -308,7 +560,7 @@ class MarketStack:
             result['status'] = 404
         else:
             result['status'] = 200
-            result['data'] = self.prepare_assets_by_stock_exchange(se_short, result['rdata'])
+            result['data'] = self.prepare_tickers_by_stock_exchange(se_short, result['rdata'])
 
         return result
 
@@ -383,7 +635,35 @@ class MarketStack:
         return result
 
     # prepares
-    def prepare_assets_by_stock_exchange(self, se_short, rdata):
+    def prepare_stock_exchange_list(self, rdata):
+        # Prepares data to be recognized as table's fields.
+        data = []
+        for obj in rdata:
+            data.append({
+                'se_short': self.get_se_short(obj['mic']),
+                'se_name': self.get_se_name(obj['name']),
+                'se_timezone': str(obj['timezone']['timezone']),
+                'country_code': str(obj['country_code']),
+                'currency_code': str(obj['currency']['code']),
+                'website': str(obj['website']),
+            })
+
+        return data
+
+    def prepare_stock_exchange_data(self, rdata):
+        # Prepares data to be recognized as table's fields.
+        data = {
+            'se_short': self.get_se_short(rdata['mic']),
+            'se_name': self.get_se_name(rdata['name']),
+            'se_timezone': str(rdata['timezone']['timezone']),
+            'country_code': str(rdata['country_code']),
+            'currency_code': str(rdata['currency']['code']),
+            'website': str(rdata['website']),
+        }
+
+        return data
+
+    def prepare_tickers_by_stock_exchange(self, se_short, rdata):
         # Prepares data to be recognized as table's fields.
         data = []
         for obj in rdata:
@@ -416,34 +696,6 @@ class MarketStack:
                          'low': obj['low'],
                          'close': obj['adj_close'],
                          'volume': obj['volume']})
-
-        return data
-
-    def prepare_stock_exchange_data(self, rdata):
-        # Prepares data to be recognized as table's fields.
-        data = {
-            'se_short': self.get_se_short(rdata['mic']),
-            'se_name': self.get_se_name(rdata['name']),
-            'se_timezone': str(rdata['timezone']['timezone']),
-            'country_code': str(rdata['country_code']),
-            'currency_code': str(rdata['currency']['code']),
-            'website': str(rdata['website']),
-        }
-
-        return data
-
-    def prepare_stock_exchange_list(self, rdata):
-        # Prepares data to be recognized as table's fields.
-        data = []
-        for obj in rdata:
-            data.append({
-                'se_short': self.get_se_short(obj['mic']),
-                'se_name': self.get_se_name(obj['name']),
-                'se_timezone': str(obj['timezone']['timezone']),
-                'country_code': str(obj['country_code']),
-                'currency_code': str(obj['currency']['code']),
-                'website': str(obj['website']),
-            })
 
         return data
 
