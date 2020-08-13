@@ -204,7 +204,6 @@ class ProviderManager:
         inconsistencies = self.get_eod_inconsistencies(serializer,
                                                        provider_id=serializer['trusted_provider'],
                                                        data_key='trusted_data')
-
         if inconsistencies['amount'] > 0:
             for data in serializer['trusted_data']:
                 if data['datetime'] not in inconsistencies['result']['empty_fields']:
@@ -223,9 +222,8 @@ class ProviderManager:
         return validated_data
 
     def standardize_eod_data(self, validated_data):
-        # Once empty data is already removed by self.fix_eod_inconsistency,
+        # Once empty data is already removed by self.replace_inconsistencies_with_trusted_data,
         # we just need to standardize data before sending it to database.
-
         for data in validated_data:
             data['open'] = round(data['open'] * data['adj_pct'], 2)
             data['high'] = round(data['high'] * data['adj_pct'], 2)
@@ -272,14 +270,13 @@ class ProviderManager:
                 'roc_too_high': []
             }
         }
-        data = {}
         d_raws = self.get_raw_data_from_db(serializer['asset_symbol'], serializer['last_x_periods'])
 
         # Using date as key...
         date_as_key = phioon_utils.get_field_as_unique_key(serializer[data_key], 'datetime')
 
         # Looking for empty fields...
-        inconsistencies['result']['empty_fields'] = self.get_dates_empty_fields(date_as_key, d_raws)
+        inconsistencies['result']['empty_fields'] = self.get_dates_empty_fields(date_as_key)
         inconsistencies['amount'] += len(inconsistencies['result']['empty_fields'])
         # Looking for discrepancy on Rate of Change (ROC) values...
         inconsistencies['result']['roc_too_high'] = self.get_dates_roc_too_high(date_as_key, d_raws)
@@ -297,16 +294,16 @@ class ProviderManager:
 
         return inconsistencies
 
-    def get_dates_empty_fields(self, data, d_raws):
+    def get_dates_empty_fields(self, data):
         result = []
         for k, v in data.items():
-            if not v['open'] and k not in d_raws:
+            if not v['open']:
                 result.append(k)
-            elif not v['high'] and k not in d_raws:
+            elif not v['high']:
                 result.append(k)
-            elif not v['low'] and k not in d_raws:
+            elif not v['low']:
                 result.append(k)
-            elif not v['close'] and k not in d_raws:
+            elif not v['close']:
                 result.append(k)
 
         return result
