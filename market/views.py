@@ -12,8 +12,10 @@ from .models import StockExchange, Asset, TechnicalCondition
 from .models import D_raw, D_pvpc, D_ema, D_setup, D_setupSummary
 from .cron import m15, daily, monthly, onDemand
 
+from django.utils import timezone
 from datetime import datetime, timedelta
 from time import time
+import pytz
 
 from google.cloud import tasks_v2
 from concurrent.futures import ThreadPoolExecutor as ThreadPool
@@ -150,7 +152,7 @@ class D_emaLatestList(generics.ListAPIView):
             try:
                 latest_data = D_ema.objects.get(d_raw__asset_symbol=obj['asset_symbol'],
                                                 d_raw__d_datetime__exact=obj['latest_datetime'])
-            except D_pvpc.DoesNotExist:
+            except D_ema.DoesNotExist:
                 continue
 
             result.append(latest_data)
@@ -300,14 +302,17 @@ def update_asset_profile(request, symbol, apiKey=None):
 @permission_classes([permissions.AllowAny])
 def run_raw_data_se_short(request, se_short, last_x_rows=5, apiKey=None):
     if apiKey == settings.API_KEY:
+        stockExchange = StockExchange.objects.get(pk=se_short)
         client = tasks_v2.CloudTasksClient()
         parent = client.queue_path(settings.GAE_PROJECT,
                                    settings.GAE_QUEUES['market-eod']['location'],
                                    settings.GAE_QUEUES['market-eod']['name'])
-        today = datetime.today()
+
+        se_tzinfo = pytz.timezone(stockExchange.se_timezone)
+        today = datetime.today().astimezone()
         a_month_ago = today - timedelta(days=30)
 
-        # Once we got a bigger plan with MarketStack, switch it to all assets (line bellow)
+        # Once we got a bigger plan with Providers, switch it to all assets (line bellow)
         # assets = Asset.objects.filter(stockExchange=se_short)
         sync_list = []
         assets = Asset.objects.filter(
@@ -332,6 +337,8 @@ def run_raw_data_se_short(request, se_short, last_x_rows=5, apiKey=None):
             if draws.count() > 0:
                 latest_draw = asset.draws.order_by('-d_datetime')[0]
                 latest_datetime = datetime.strptime(latest_draw.d_datetime, '%Y-%m-%d %H:%M:%S')
+                latest_datetime = timezone.make_aware(latest_datetime,
+                                                      se_tzinfo)
                 delta = today - latest_datetime
 
                 if delta > timedelta(days=delta_days_tolerance):
