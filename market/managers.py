@@ -7,13 +7,13 @@ import inspect
 class ProviderManager:
     # Providers instances are ordered by priority
     providers_by_context = {
-        'assets_by_stock_exchange': [providers.MarketStack(), ],
+        'assets_by_stock_exchange': [providers.MarketStack()],
         'eod': [providers.Yahoo(),
                 providers.MarketStack(),
                 providers.AlphaVantage()],
-        'profile': [providers.Yahoo(), ],
-        'realtime': [providers.Yahoo(), ],
-        'stock_exchange': [providers.MarketStack(), ],
+        'profile': [providers.Yahoo()],
+        'realtime': [providers.Yahoo()],
+        'stock_exchange': [providers.MarketStack()],
     }
     trusted_providers = {
         'eod': [providers.Yahoo(),
@@ -21,11 +21,11 @@ class ProviderManager:
     }
 
     phioon_as_provider = {
-        'assets_by_stock_exchange': [providers.Phioon(), ],
-        'eod': [providers.Phioon(), ],
-        'profile': [providers.Phioon(), ],
-        'realtime': [providers.Phioon(), ],
-        'stock_exchange': [providers.Phioon(), ],
+        'assets_by_stock_exchange': [providers.Phioon()],
+        'eod': [providers.Phioon()],
+        'profile': [providers.Phioon()],
+        'realtime': [providers.Phioon()],
+        'stock_exchange': [providers.Phioon()],
     }
 
     # utils
