@@ -52,7 +52,7 @@ class AssetDetailSerializer(serializers.ModelSerializer):
 class D_rawBasicSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.D_raw
-        fields = ['id', 'd_datetime', 'asset_symbol', 'd_close']
+        fields = ['asset_symbol', 'd_datetime', 'd_close', 'd_volume']
 
 
 class D_rawDetailSerializer(serializers.ModelSerializer):

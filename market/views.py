@@ -98,7 +98,38 @@ class D_RawList(generics.ListAPIView):
                                     d_datetime__lte=dateTo + ' 23:59:59')
 
 
-class D_phiboLatestList(generics.ListAPIView):
+class D_RawLatestList(generics.ListAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = serializers.D_rawBasicSerializer
+
+    def get_queryset(self):
+        stockExchange = self.request.query_params.get('stockExchange')
+        assets = self.request.query_params.get('assets')
+        result = []
+
+        if stockExchange:
+            latest_datetime_by_asset = (D_raw.objects.filter(asset_symbol__stockExchange__exact=stockExchange)
+                                        .values('asset_symbol')
+                                        .annotate(latest_datetime=Max('d_datetime')))
+        else:
+            assets = assets.split(',')
+            latest_datetime_by_asset = (D_raw.objects.filter(asset_symbol__in=assets)
+                                        .values('asset_symbol')
+                                        .annotate(latest_datetime=Max('d_datetime')))
+
+        for obj in latest_datetime_by_asset:
+            try:
+                latest_data = D_raw.objects.get(asset_symbol=obj['asset_symbol'],
+                                                d_datetime__exact=obj['latest_datetime'])
+            except D_raw.DoesNotExist:
+                continue
+
+            result.append(latest_data)
+
+        return result
+
+
+class D_PhiboLatestList(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = serializers.D_pvpcSerializer
 
@@ -129,7 +160,7 @@ class D_phiboLatestList(generics.ListAPIView):
         return result
 
 
-class D_emaLatestList(generics.ListAPIView):
+class D_EmaLatestList(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = serializers.D_emaSerializer
 
