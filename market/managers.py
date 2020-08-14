@@ -53,7 +53,7 @@ class ProviderManager:
         for provider in self.get_providers_by_context('stock_exchange'):
             result = provider.get_stock_exchange_list()
 
-            if result['status'] == 200:
+            if result['status'] == 200 and result['data']:
                 return result['data']
 
         # Went through all providers and couldn't get a validated data.
@@ -70,7 +70,7 @@ class ProviderManager:
         for provider in self.get_providers_by_context('stock_exchange'):
             result = provider.get_stock_exchange_data(se_short=se_short)
 
-            if result['status'] == 200:
+            if result['status'] == 200 and result['data']:
                 return result['data']
 
         # Went through all providers and couldn't get a validated data.
@@ -87,7 +87,7 @@ class ProviderManager:
         for provider in self.get_providers_by_context('assets_by_stock_exchange'):
             result = provider.get_tickers_by_stock_exchange(se_short)
 
-            if result['status'] == 200:
+            if result['status'] == 200 and result['data']:
                 return result['data']
 
         # Went through all providers and couldn't get a validated data.
@@ -104,7 +104,7 @@ class ProviderManager:
         for provider in self.get_providers_by_context('profile'):
             result = provider.get_profile_data(asset_symbol)
 
-            if result['status'] == 200:
+            if result['status'] == 200 and result['data']:
                 return result['data']
 
         # Went through all providers and couldn't get a validated data.
@@ -121,7 +121,7 @@ class ProviderManager:
         for provider in self.get_providers_by_context('realtime'):
             result = provider.get_realtime_data(asset_symbol)
 
-            if result['status'] == 200:
+            if result['status'] == 200 and result['data']:
                 return result['data']
 
         # Went through all providers and couldn't get a validated data.
@@ -138,7 +138,7 @@ class ProviderManager:
         for provider in self.get_providers_by_context('eod'):
             result = provider.get_eod_data(asset_symbol, last_x_periods)
 
-            if result['status'] == 200:
+            if result['status'] == 200 and result['data']:
                 result['validated_data'] = self.validate_initial_data(asset_symbol,
                                                                       provider.id,
                                                                       result['data'],

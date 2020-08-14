@@ -867,31 +867,32 @@ class Yahoo:
         # Prepares data to be recognized as table's fields.
         data = []
 
-        for x in range(len(rdata['timestamp'])):
-            adj_pct = 1         # default value
+        if 'timestamp' in rdata:
+            for x in range(len(rdata['timestamp'])):
+                adj_pct = 1         # default value
 
-            datetime = utils.convert_epoch_timestamp(rdata['timestamp'][x])
-            datetime = self.get_date_isoformat(datetime)
-            open = rdata['indicators']['quote'][0]['open'][x]
-            high = rdata['indicators']['quote'][0]['high'][x]
-            low = rdata['indicators']['quote'][0]['low'][x]
-            close = rdata['indicators']['quote'][0]['close'][x]
-            adj_close = rdata['indicators']['adjclose'][0]['adjclose'][x]
-            volume = rdata['indicators']['quote'][0]['volume'][x]
+                datetime = utils.convert_epoch_timestamp(rdata['timestamp'][x])
+                datetime = self.get_date_isoformat(datetime)
+                open = rdata['indicators']['quote'][0]['open'][x]
+                high = rdata['indicators']['quote'][0]['high'][x]
+                low = rdata['indicators']['quote'][0]['low'][x]
+                close = rdata['indicators']['quote'][0]['close'][x]
+                adj_close = rdata['indicators']['adjclose'][0]['adjclose'][x]
+                volume = rdata['indicators']['quote'][0]['volume'][x]
 
-            if adj_close and close:
-                adj_pct = utils.division(float(adj_close),
-                                         float(close),
-                                         decimals=5,
-                                         if_denominator_is_zero=1)
+                if adj_close and close:
+                    adj_pct = utils.division(float(adj_close),
+                                             float(close),
+                                             decimals=5,
+                                             if_denominator_is_zero=1)
 
-            data.append({'datetime': self.get_date_isoformat(datetime),
-                         'adj_pct': adj_pct,
-                         'open': open,
-                         'high': high,
-                         'low': low,
-                         'close': adj_close,
-                         'volume': volume})
+                data.append({'datetime': self.get_date_isoformat(datetime),
+                             'adj_pct': adj_pct,
+                             'open': open,
+                             'high': high,
+                             'low': low,
+                             'close': adj_close,
+                             'volume': volume})
 
         return data
 
