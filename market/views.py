@@ -7,15 +7,19 @@ from rest_framework.response import Response
 
 from django_engine.functions import generic
 from django_engine import settings
+from .functions import utils as phioon_utils
 from . import serializers
 from .models import StockExchange, Asset, TechnicalCondition
-from .models import D_raw, D_pvpc, D_ema, D_setup, D_setupSummary
+from .models import Realtime, D_raw, D_pvpc, D_ema, D_roc, D_setup, D_setupSummary
 from .cron import m15, daily, monthly, onDemand
 
 from django.utils import timezone
 from datetime import datetime, timedelta
 from time import time
 import pytz
+
+import re
+import copy
 
 from google.cloud import tasks_v2
 from concurrent.futures import ThreadPoolExecutor as ThreadPool
@@ -71,6 +75,183 @@ class AssetList(generics.ListAPIView):
             a.frontend_access(assets)
 
             return Asset.objects.filter(asset_symbol__in=assets)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def IndicatorList(request):
+    result = []
+    consider_fields = {
+        'd_raw': ['d_open', 'd_high', 'd_low', 'd_close']
+    }
+    ignore_fields = {
+        'raw': ['id', 'asset_symbol', 'asset_datetime', 'last_trade_time', 'pct_change'],
+        'ema': ['id', 'd_raw', 'asset_datetime'],
+        'phibo': ['id', 'd_raw', 'asset_datetime'],
+        'roc': ['id', 'd_raw', 'asset_datetime', 'd_roc_close2', 'd_roc_close3', 'd_roc_high2', 'd_roc_low2'],
+    }
+    # Requirements
+    d_raw_fields = D_raw._meta.fields
+    d_ema_fields = D_ema._meta.fields
+    d_pvpc_fields = D_pvpc._meta.fields
+    d_roc_fields = D_roc._meta.fields
+    generic_time_interval = 'any'
+
+    # 1. Any Interval
+    # 1.1 Zero
+    category = 'centered_oscillator'
+    subcategory = 'zero_line'
+    indicator = 'zero_line'
+    periods = None
+    time_interval = 'any'
+
+    obj = {
+        'id': 'zero_line',
+        'label_id': 'zero_line',
+        'category': category,
+        'subcategory': subcategory,
+        'indicator': indicator,
+        'periods': periods,
+        'time_interval': time_interval,
+        'relationships': []
+    }
+    result.append(obj)
+    # 2. Daily
+    time_interval = 'd'
+    # 2.1 Price Lagging: Quote
+    for field in d_raw_fields:
+        category = 'price_lagging'
+        subcategory = 'quote'
+        indicator = 'quote'
+
+        if field.name in consider_fields['d_raw']:
+            generic_obj = None
+            periods = 0
+            generic_id = str(field.name)[str(field.name).index('_') + 1:]
+
+            obj = {
+                'id': field.name,
+                'label_id': generic_id,
+                'category': category,
+                'subcategory': subcategory,
+                'indicator': indicator,
+                'periods': periods,
+                'time_interval': time_interval,
+                'relationships': []
+            }
+
+            if not phioon_utils.retrieve_obj_from_obj_list(result, 'id', generic_id):
+                generic_obj = copy.deepcopy(obj)
+                generic_obj['id'] = generic_id
+                generic_obj['time_interval'] = generic_time_interval
+
+            if generic_obj:
+                result.append(generic_obj)
+            result.append(obj)
+    # 2.2 Price Lagging: EMA
+    for field in d_ema_fields:
+        category = 'price_lagging'
+        subcategory = 'moving_average'
+        indicator = 'ema'
+
+        if field.name not in ignore_fields['ema']:
+            generic_obj = None
+            periods = int(re.findall('[0-9]+', field.name)[0])
+            generic_id = str(field.name)[str(field.name).index('_') + 1:]
+
+            obj = {
+                'id': field.name,
+                'label_id': generic_id,
+                'category': category,
+                'subcategory': subcategory,
+                'indicator': indicator,
+                'periods': periods,
+                'time_interval': time_interval,
+                'relationships': []
+            }
+
+            generic_roc_id = generic_id.replace('ema_', 'ema')
+            generic_roc_id = 'roc_' + generic_roc_id
+            roc_id = time_interval + '_' + generic_roc_id
+
+            if not phioon_utils.retrieve_obj_from_obj_list(result, 'id', generic_id):
+                generic_obj = copy.deepcopy(obj)
+                generic_obj['id'] = generic_id
+                generic_obj['time_interval'] = generic_time_interval
+
+            for field in d_roc_fields:
+                if roc_id == field.name:
+                    obj['relationships'].append({'id': roc_id})
+
+                    if generic_obj:
+                        generic_obj['relationships'].append({'id': generic_roc_id})
+                    break
+
+            if generic_obj:
+                result.append(generic_obj)
+            result.append(obj)
+    # 2.3 Price Lagging: PHIBO
+    for field in d_pvpc_fields:
+        category = 'price_lagging'
+        subcategory = 'phibo'
+        indicator = 'pvpc'
+
+        if field.name not in ignore_fields['phibo']:
+            periods = int(re.findall('[0-9]+', field.name)[0])
+            generic_id = str(field.name)[str(field.name).index('_') + 1:]
+
+            generic_obj = None
+            obj = {
+                'id': field.name,
+                'label_id': generic_id,
+                'category': category,
+                'subcategory': subcategory,
+                'indicator': indicator,
+                'periods': periods,
+                'time_interval': time_interval,
+                'relationships': []
+            }
+
+            if not phioon_utils.retrieve_obj_from_obj_list(result, 'id', generic_id):
+                generic_obj = copy.deepcopy(obj)
+                generic_obj['id'] = generic_id
+                generic_obj['time_interval'] = generic_time_interval
+
+            if generic_obj:
+                result.append(generic_obj)
+            result.append(obj)
+    # 2.4 Centered Oscillator: ROC
+    for field in d_roc_fields:
+        category = 'centered_oscillator'
+        subcategory = 'roc'
+        indicator = 'roc'
+
+        if field.name not in ignore_fields['roc']:
+            periods = int(re.findall('[0-9]+', field.name)[0])
+            generic_id = str(field.name)[str(field.name).index('_') + 1:]
+
+            generic_obj = None
+            obj = {
+                'id': field.name,
+                'label_id': generic_id,
+                'category': category,
+                'subcategory': subcategory,
+                'indicator': indicator,
+                'periods': periods,
+                'time_interval': time_interval,
+                'relationships': []
+            }
+
+            if not phioon_utils.retrieve_obj_from_obj_list(result, 'id', generic_id):
+                generic_obj = copy.deepcopy(obj)
+                generic_obj['id'] = generic_id
+                generic_obj['time_interval'] = generic_time_interval
+
+            if generic_obj:
+                result.append(generic_obj)
+            result.append(obj)
+
+    return Response(result)
 
 
 class D_RawList(generics.ListAPIView):
@@ -129,37 +310,6 @@ class D_RawLatestList(generics.ListAPIView):
         return result
 
 
-class D_PhiboLatestList(generics.ListAPIView):
-    permission_classes = [permissions.IsAuthenticated]
-    serializer_class = serializers.D_pvpcSerializer
-
-    def get_queryset(self):
-        stockExchange = self.request.query_params.get('stockExchange')
-        assets = self.request.query_params.get('assets')
-        result = []
-
-        if stockExchange:
-            latest_datetime_by_asset = (D_raw.objects.filter(asset_symbol__stockExchange__exact=stockExchange)
-                                        .values('asset_symbol')
-                                        .annotate(latest_datetime=Max('d_datetime')))
-        else:
-            assets = assets.split(',')
-            latest_datetime_by_asset = (D_raw.objects.filter(asset_symbol__in=assets)
-                                        .values('asset_symbol')
-                                        .annotate(latest_datetime=Max('d_datetime')))
-
-        for obj in latest_datetime_by_asset:
-            try:
-                latest_data = D_pvpc.objects.get(d_raw__asset_symbol=obj['asset_symbol'],
-                                                 d_raw__d_datetime__exact=obj['latest_datetime'])
-            except D_pvpc.DoesNotExist:
-                continue
-
-            result.append(latest_data)
-
-        return result
-
-
 class D_EmaLatestList(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = serializers.D_emaSerializer
@@ -184,6 +334,37 @@ class D_EmaLatestList(generics.ListAPIView):
                 latest_data = D_ema.objects.get(d_raw__asset_symbol=obj['asset_symbol'],
                                                 d_raw__d_datetime__exact=obj['latest_datetime'])
             except D_ema.DoesNotExist:
+                continue
+
+            result.append(latest_data)
+
+        return result
+
+
+class D_PhiboLatestList(generics.ListAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = serializers.D_pvpcSerializer
+
+    def get_queryset(self):
+        stockExchange = self.request.query_params.get('stockExchange')
+        assets = self.request.query_params.get('assets')
+        result = []
+
+        if stockExchange:
+            latest_datetime_by_asset = (D_raw.objects.filter(asset_symbol__stockExchange__exact=stockExchange)
+                                        .values('asset_symbol')
+                                        .annotate(latest_datetime=Max('d_datetime')))
+        else:
+            assets = assets.split(',')
+            latest_datetime_by_asset = (D_raw.objects.filter(asset_symbol__in=assets)
+                                        .values('asset_symbol')
+                                        .annotate(latest_datetime=Max('d_datetime')))
+
+        for obj in latest_datetime_by_asset:
+            try:
+                latest_data = D_pvpc.objects.get(d_raw__asset_symbol=obj['asset_symbol'],
+                                                 d_raw__d_datetime__exact=obj['latest_datetime'])
+            except D_pvpc.DoesNotExist:
                 continue
 
             result.append(latest_data)
@@ -340,7 +521,7 @@ def run_raw_data_se_short(request, se_short, last_x_rows=5, apiKey=None):
                                    settings.GAE_QUEUES['market-eod']['name'])
 
         se_tzinfo = pytz.timezone(stockExchange.se_timezone)
-        today = datetime.today().astimezone()
+        today = datetime.today().astimezone(se_tzinfo)
         a_month_ago = today - timedelta(days=30)
 
         # Once we got a bigger plan with Providers, switch it to all assets (line bellow)
@@ -352,14 +533,27 @@ def run_raw_data_se_short(request, se_short, last_x_rows=5, apiKey=None):
         )
 
         if today.weekday() in [0]:
-            # Tolerance if it's Monday
-            delta_days_tolerance = 3
-        elif today.weekday() in [6]:
-            # Tolerance if it's Sunday
+            # MON
+            if today.hour <= 12:
+                # Latest EOD data on DB must be Friday's.
+                delta_days_tolerance = 4
+            else:
+                # Latest EOD data on DB must be today's.
+                delta_days_tolerance = 1
+        elif today.weekday() in [1, 2, 3, 4]:
+            # TUS, WED, THU, SEX
+            if today.hour <= 12:
+                # Latest EOD data on DB must be yesterday's.
+                delta_days_tolerance = 2
+            else:
+                # Latest EOD data on DB must be today's.
+                delta_days_tolerance = 1
+        elif today.weekday() in [5]:
+            # SAT: Latest EOD data on DB must be Friday's.
             delta_days_tolerance = 2
-        else:
-            # Tolerance for Tue, Wed, Thu, Sex and Sat
-            delta_days_tolerance = 1
+        elif today.weekday() in [6]:
+            # SUN: Latest EOD data on DB must be Friday's.
+            delta_days_tolerance = 3
 
         for asset in assets:
             draws = asset.draws

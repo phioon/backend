@@ -7,6 +7,7 @@ urlpatterns = [
     path('technicalConditions/', views.TechnicalConditionList.as_view(), name='Technical Conditions'),
     path('stockExchanges/', views.StockExchangeList.as_view(), name='Stock Exchanges'),
     path('assets/', views.AssetList.as_view(), name='Assets'),
+    path('indicators/', views.IndicatorList, name='Indicators avaliable'),
     path('d/raw/', views.D_RawList.as_view(), name='D_Raw data'),
     path('d/raw/latest/', views.D_RawLatestList.as_view(), name='D_raw latest data'),
     path('d/phibo/latest/', views.D_PhiboLatestList.as_view(), name='D_pvpc data'),

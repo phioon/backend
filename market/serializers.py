@@ -61,6 +61,13 @@ class D_rawDetailSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class D_indicatorSerializer(serializers.Serializer):
+    ema_list = serializers.SerializerMethodField()
+
+    def get_ema_list(self, obj):
+        return [field.name for field in models.D_ema._meta.fields]
+
+
 class D_pvpcSerializer(serializers.ModelSerializer):
     asset_symbol = serializers.ReadOnlyField(source='d_raw.asset_symbol.asset_symbol')
     d_datetime = serializers.ReadOnlyField(source='d_raw.d_datetime')
@@ -86,11 +93,12 @@ class D_emaSerializer(serializers.ModelSerializer):
 class D_setupSerializer(serializers.ModelSerializer):
     se_short = serializers.ReadOnlyField(source='d_raw.asset_symbol.stockExchange.se_short')
     asset_symbol = serializers.ReadOnlyField(source='d_raw.asset_symbol_id')
+    asset_label = serializers.ReadOnlyField(source='d_raw.asset_symbol.profile.asset_label')
     tc_id = serializers.ReadOnlyField(source='tc.id')
 
     class Meta:
         model = models.D_setup
-        fields = ['id', 'se_short', 'asset_setup', 'asset_symbol',
+        fields = ['id', 'se_short', 'asset_setup', 'asset_symbol', 'asset_label',
                   'started_on', 'ended_on', 'is_success', 'duration', 'tc_id',
                   'max_price', 'target', 'stop_loss', 'gain_percent', 'loss_percent', 'risk_reward',
                   'fibo_pct_retraction']
