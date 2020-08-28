@@ -567,33 +567,36 @@ def updateSetup(symbol):
 
             asset_setup = str(symbol + '_' + setup.tc.id)
 
+            obj = D_setup(d_raw=d_raw.get(asset_datetime=adt),
+                          asset_setup=asset_setup,
+                          asset_datetime=adt,
+                          tc=setup.tc,
+
+                          started_on=setup.started_on,
+                          ended_on=setup.ended_on,
+                          is_success=setup.is_success,
+                          duration=setup.duration,
+
+                          max_price=setup.max_price,
+                          target=setup.target,
+                          stop_loss=setup.stop_loss,
+                          gain_percent=setup.gain_percent,
+                          loss_percent=setup.loss_percent,
+                          risk_reward=setup.risk_reward,
+
+                          fibo_periods_needed=setup.fibo_periods_needed,
+                          fibo_p1=setup.fibo_p1,
+                          fibo_p2=setup.fibo_p2,
+                          fibo_p3=setup.fibo_p3,
+                          fibo_wave_1=setup.fibo_wave_1,
+                          fibo_retraction=setup.fibo_retraction,
+                          fibo_pct_retraction=setup.fibo_pct_retraction,
+                          fibo_projection=setup.fibo_projection)
             if setup.risk_reward >= 2:
-                obj = D_setup(d_raw=d_raw.get(asset_datetime=adt),
-                              asset_setup=asset_setup,
-                              asset_datetime=adt,
-                              tc=setup.tc,
-
-                              started_on=setup.started_on,
-                              ended_on=setup.ended_on,
-                              is_success=setup.is_success,
-                              duration=setup.duration,
-
-                              max_price=setup.max_price,
-                              target=setup.target,
-                              stop_loss=setup.stop_loss,
-                              gain_percent=setup.gain_percent,
-                              loss_percent=setup.loss_percent,
-                              risk_reward=setup.risk_reward,
-
-                              fibo_periods_needed=setup.fibo_periods_needed,
-                              fibo_p1=setup.fibo_p1,
-                              fibo_p2=setup.fibo_p2,
-                              fibo_p3=setup.fibo_p3,
-                              fibo_wave_1=setup.fibo_wave_1,
-                              fibo_retraction=setup.fibo_retraction,
-                              fibo_pct_retraction=setup.fibo_pct_retraction,
-                              fibo_projection=setup.fibo_projection)
-                objs.append(obj)
+                obj.is_public = True
+            else:
+                obj.is_public = False
+            objs.append(obj)
             continue
 
     d_setup.updateOrCreateObjs(objs)
@@ -660,7 +663,8 @@ def updateSetupSummary(symbol):
         success_rate = phioon_utils.percentage(gain_count, total_count, decimals=1, if_denominator_is_zero=0)
 
         # Determine if setup will be visible at this point of time
-        if success_rate >= settings.MARKET_MIN_SUCCESS_RATE:
+        if (success_rate >= settings.MARKET_MIN_SUCCESS_RATE and
+                setup.risk_reward >= settings.MARKET_MIN_REWARD_RISK):
             setup.is_public = True
             setup.save()
 

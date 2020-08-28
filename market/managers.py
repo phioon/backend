@@ -228,7 +228,7 @@ class ProviderManager:
             data['open'] = round(data['open'] * data['adj_pct'], 2)
             data['high'] = round(data['high'] * data['adj_pct'], 2)
             data['low'] = round(data['low'] * data['adj_pct'], 2)
-            data['close'] = round(data['close'] * data['adj_pct'], 2)
+            data['close'] = round(data['close'], 2)
             data['volume'] = int(data['volume'])
 
         return validated_data

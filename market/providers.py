@@ -437,7 +437,7 @@ class MarketStack:
 
                   'access_key=<api_key>&'
                   'limit=<limit>')
-    api_realtime = str('https://api.marketstack.com/v1/intraday/latest?'
+    api_realtime = str('http://api.marketstack.com/v1/intraday/latest?'
                        'access_key=<api_key>&'
                        'exchange=<se_short>&'
                        'limit=<limit>')
