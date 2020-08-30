@@ -120,7 +120,8 @@ def stop_loss_sell(max_price, stop_loss):
     return percentage(delta, max_price)
 
 
-def fibonacci_projection(type, highList, lowList, projection_percentage, max_periods_to_consider=72):
+def fibonacci_projection(type, highList, lowList, projection_percentage,
+                         min_periods_to_consider=17, inc_interval=4, max_periods_to_consider=72):
     # highList and lowList are ordered by ASCENDENT
     # So, the more recent data is in the last position
 
@@ -128,8 +129,7 @@ def fibonacci_projection(type, highList, lowList, projection_percentage, max_per
     fibo_projection = {}
 
     lastIndex = len(highList) - 1
-    periods = 17
-    inc_interval = 4
+    periods = min_periods_to_consider
 
     keepLooking = True
     high_today = highList[lastIndex]

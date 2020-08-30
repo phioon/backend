@@ -435,9 +435,14 @@ def run_offline_raw_data_se_short(request, se_short, apiKey=None):
         parent = client.queue_path(settings.GAE_PROJECT,
                                    settings.GAE_QUEUES['market-eod']['location'],
                                    settings.GAE_QUEUES['market-eod']['name'])
+        sync_list = []
         assets = Asset.objects.filter(stockExchange=se_short)
 
         for asset in assets:
+            if asset.draws.count() > 0:
+                sync_list.append(asset)
+
+        for asset in sync_list:
             url = settings.MARKET_API_BASE + 'task/offline/runRaw/D/asset/'
             url += asset.asset_symbol + '/'
             url += settings.API_KEY
@@ -449,7 +454,7 @@ def run_offline_raw_data_se_short(request, se_short, apiKey=None):
 
         obj_res = {
             'context': 'apiMarket.run_raw_data_se_short',
-            'message': "[%s] Assets to be updated: %s" % (se_short, assets)}
+            'message': "[%s] Assets to be updated: %s" % (se_short, sync_list)}
         return Response(obj_res)
     else:
         return Response(status=status.HTTP_403_FORBIDDEN)
@@ -573,16 +578,21 @@ def run_raw_data_se_short(request, se_short, last_x_rows=5, apiKey=None):
                 sync_list.append(asset)
                 last_periods = 0
 
-        for asset in sync_list:
-            url = settings.MARKET_API_BASE + 'task/runRaw/D/asset/'
-            url += asset.asset_symbol + '/'
-            url += str(last_periods) + '/'
-            url += settings.API_KEY
-            task = {
-                'http_request': {
-                    'http_method': 'GET',
-                    'url': url}}
-            client.create_task(parent, task)
+        if settings.ENVIRONMENT == 'PRD':
+            for asset in sync_list:
+                url = settings.MARKET_API_BASE + 'task/runRaw/D/asset/'
+                url += asset.asset_symbol + '/'
+                url += str(last_periods) + '/'
+                url += settings.API_KEY
+                task = {
+                    'http_request': {
+                        'http_method': 'GET',
+                        'url': url}}
+                client.create_task(parent, task)
+        elif settings.ENVIRONMENT == 'DEV' and settings.ACCESS_PRD_DB is False:
+            for asset in sync_list:
+                print('Working on %s...' % asset.asset_symbol)
+                daily.run_asset_raw(symbol=asset.asset_symbol, lastXrows=last_x_rows)
 
         obj_res = {
             'context': 'apiMarket.run_raw_data_se_short',

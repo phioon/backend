@@ -40,13 +40,13 @@ class Setup:
         elif (phibo_alignment_yesterday in [6, 7] and
                 phibo_test_yesterday == 305 and
                 low_ema_btl_yesterday in [6, 7] and
-                roc_ema34 > 0 and
+                # roc_ema34 > 0 and
                 pivot == 1):
             return 'phibo_305_up'
         elif (phibo_alignment_yesterday in [6, 7] and
                 phibo_test_yesterday == 72 and
                 low_ema_btl_yesterday in [6, 7] and
-                roc_ema34 > 0 and
+                # roc_ema34 > 0 and
                 pivot == 1):
             return 'phibo_72_up'
 
@@ -58,13 +58,13 @@ class Setup:
         elif (phibo_alignment_yesterday in [0, 1] and
                 phibo_test_yesterday == -305 and
                 high_ema_btl_yesterday in [0, 1] and
-                roc_ema34 < 0 and
+                # roc_ema34 < 0 and
                 pivot == -1):
             return 'phibo_305_down'
         elif (phibo_alignment_yesterday in [0, 1] and
                 phibo_test_yesterday == -72 and
                 high_ema_btl_yesterday in [0, 1] and
-                roc_ema34 < 0 and
+                # roc_ema34 < 0 and
                 pivot == -1):
             return 'phibo_72_down'
 
@@ -191,7 +191,14 @@ class Setup:
         pv72 = pvList[last_index][0]
         pv1292 = pvList[last_index][2]
         pvTarget = pv72 + (pv72 - pv1292)
-        fiboProjection = utils.fibonacci_projection('buy', highList, lowList, 1.0)
+        # fiboProjection = utils.fibonacci_projection('buy', highList, lowList, 1.0)
+        fiboProjection = utils.fibonacci_projection(type='buy',
+                                                    highList=highList,
+                                                    lowList=lowList,
+                                                    projection_percentage=1.6,
+                                                    min_periods_to_consider=34,
+                                                    max_periods_to_consider=144,
+                                                    inc_interval=8)
 
         self.store_fibonacci_projection(fiboProjection)
         self.target = round((pvTarget + fiboProjection['projection']) / 2, 2)
@@ -219,7 +226,13 @@ class Setup:
         self.max_price = round((high_today + low_today) / 2, 2)
 
         # Target
-        fiboProjection = utils.fibonacci_projection('buy', highList, lowList, 0.9)
+        fiboProjection = utils.fibonacci_projection(type='buy',
+                                                    highList=highList,
+                                                    lowList=lowList,
+                                                    projection_percentage=1.5,
+                                                    min_periods_to_consider=17,
+                                                    max_periods_to_consider=72,
+                                                    inc_interval=4)
         self.store_fibonacci_projection(fiboProjection)
         self.target = fiboProjection['projection']
 
@@ -247,7 +260,13 @@ class Setup:
         self.max_price = round((high_today + low_today) / 2, 2)
 
         # Target
-        fiboProjection = utils.fibonacci_projection('buy', highList, lowList, 0.6)
+        fiboProjection = utils.fibonacci_projection(type='buy',
+                                                    highList=highList,
+                                                    lowList=lowList,
+                                                    projection_percentage=0.98,
+                                                    min_periods_to_consider=8,
+                                                    max_periods_to_consider=34,
+                                                    inc_interval=2)
         self.store_fibonacci_projection(fiboProjection)
         self.target = fiboProjection['projection']
 
@@ -306,7 +325,13 @@ class Setup:
         self.max_price = round((high_today + low_today) / 2, 2)
 
         # Target
-        fiboProjection = utils.fibonacci_projection('sell', highList, lowList, 0.94)
+        fiboProjection = utils.fibonacci_projection(type='sell',
+                                                    highList=highList,
+                                                    lowList=lowList,
+                                                    projection_percentage=0.9,
+                                                    min_periods_to_consider=8,
+                                                    max_periods_to_consider=34,
+                                                    inc_interval=2)
         self.store_fibonacci_projection(fiboProjection)
         self.target = fiboProjection['projection']
 

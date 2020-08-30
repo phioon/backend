@@ -24,19 +24,21 @@ PROVIDER_API_BASE = 'https://backend.phioon.com/api/provider/'
 
 MARKET_API_BASE = 'https://backend.phioon.com/api/market/'      # Used only to build tasks for GCloud
 MARKET_SE_LIST = ['BVMF']
-MARKET_MIN_SUCCESS_RATE = 55        # Determines which Setups will become public.
+MARKET_MIN_SUCCESS_RATE = 60        # Determines which Setups will become public.
 MARKET_MIN_REWARD_RISK = 2          # Determines which Setups users will receive as Recommendation.
 
 if os.getenv('GAE_APPLICATION', None):
     # [PRD] environment
+    ENVIRONMENT = 'PRD'
     DEBUG = False
     PHIOON_AS_PROVIDER = False
 
     DB_DEFAULT['HOST'] = '/cloudsql/phioon:southamerica-east1:phioon-pgsql'
 else:
     # [DEV] environment
+    ENVIRONMENT = 'DEV'
     DEBUG = True
-    ACCESS_PRD_DB = False       # Set 'True' to access PRD data (remember to turn the proxy on)
+    ACCESS_PRD_DB = False       # Set 'True' to access PRD data (remember to turn GAE proxy on)
     PHIOON_AS_PROVIDER = True
 
     DB_DEFAULT['HOST'] = '127.0.0.1'

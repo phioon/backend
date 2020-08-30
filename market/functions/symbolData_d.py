@@ -592,10 +592,6 @@ def updateSetup(symbol):
                           fibo_retraction=setup.fibo_retraction,
                           fibo_pct_retraction=setup.fibo_pct_retraction,
                           fibo_projection=setup.fibo_projection)
-            if setup.risk_reward >= 2:
-                obj.is_public = True
-            else:
-                obj.is_public = False
             objs.append(obj)
             continue
 
