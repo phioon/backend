@@ -24,12 +24,17 @@ class StockExchangeSerializer(serializers.ModelSerializer):
 class AssetBasicSerializer(serializers.ModelSerializer):
     asset_label = serializers.ReadOnlyField(source='profile.asset_label')
     asset_name = serializers.ReadOnlyField(source='profile.asset_name')
+
+    asset_lastTradeTime = serializers.ReadOnlyField(source='realtime.last_trade_time')
+    asset_high = serializers.ReadOnlyField(source='realtime.high')
+    asset_low = serializers.ReadOnlyField(source='realtime.low')
     asset_price = serializers.ReadOnlyField(source='realtime.price')
 
     class Meta:
         model = models.Asset
         fields = ['stockExchange', 'asset_symbol',
-                  'asset_label', 'asset_name', 'asset_price']
+                  'asset_label', 'asset_name',
+                  'asset_lastTradeTime', 'asset_high', 'asset_low', 'asset_price']
 
 
 class AssetDetailSerializer(serializers.ModelSerializer):
@@ -38,15 +43,17 @@ class AssetDetailSerializer(serializers.ModelSerializer):
     country_code = serializers.ReadOnlyField(source='profile.country_code')
     sector_id = serializers.ReadOnlyField(source='profile.sector_id')
 
-    asset_price = serializers.ReadOnlyField(source='realtime.price')
     asset_lastTradeTime = serializers.ReadOnlyField(source='realtime.last_trade_time')
+    asset_high = serializers.ReadOnlyField(source='realtime.high')
+    asset_low = serializers.ReadOnlyField(source='realtime.low')
+    asset_price = serializers.ReadOnlyField(source='realtime.price')
     asset_pct_change = serializers.ReadOnlyField(source='realtime.pct_change')
 
     class Meta:
         model = models.Asset
         fields = ['stockExchange', 'asset_symbol',
                   'asset_label', 'asset_name', 'country_code', 'sector_id',
-                  'asset_price', 'asset_lastTradeTime', 'asset_pct_change']
+                  'asset_lastTradeTime', 'asset_high', 'asset_low', 'asset_price', 'asset_pct_change']
 
 
 class D_rawBasicSerializer(serializers.ModelSerializer):
