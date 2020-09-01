@@ -46,6 +46,8 @@ urlpatterns += [
          name='Run offline Raw data for SE'),
     path('task/offline/runRaw/D/asset/<symbol>/<apiKey>', views.run_offline_raw_data_asset,
          name='Run offline Raw data for Asset'),
+    path('task/offline/runSetup/D/se_short/<se_short>/<apiKey>', views.run_offline_setup_se_short,
+         name='Run offline Setup for SE'),
     path('task/offline/runSetup/D/asset/<symbol>/<apiKey>', views.run_offline_setup_asset,
          name='Run offline Setup for Asset'),
 ]

@@ -29,14 +29,13 @@ MARKET_MIN_REWARD_RISK = 2          # Determines which Setups users will receive
 
 if os.getenv('GAE_APPLICATION', None):
     # [PRD] environment
-    ENVIRONMENT = 'PRD'
     DEBUG = False
+    ACCESS_PRD_DB = True        # Don't change it! Used on views.py
     PHIOON_AS_PROVIDER = False
 
     DB_DEFAULT['HOST'] = '/cloudsql/phioon:southamerica-east1:phioon-pgsql'
 else:
     # [DEV] environment
-    ENVIRONMENT = 'DEV'
     DEBUG = True
     ACCESS_PRD_DB = False       # Set 'True' to access PRD data (remember to turn GAE proxy on)
     PHIOON_AS_PROVIDER = True

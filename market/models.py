@@ -226,24 +226,28 @@ class TechnicalCondition(models.Model):
     @staticmethod
     def pivot(high_4p, low_4p):
         if len(high_4p) == 4:
-            if (high_4p[0] > high_4p[1] and
-                    high_4p[1] <= high_4p[2] < high_4p[3] and
-                    low_4p[2] <= low_4p[3]):
+            # Tolerance to avoid '
+            min_low_pivot = low_4p[2] * 0.99382     # 0.618%
+            max_high_pivot = high_4p[2] * 1.00618  # 0.618%
+
+            if (high_4p[0] > high_4p[1] >= high_4p[2] and
+                    high_4p[2] < high_4p[3] and
+                    min_low_pivot <= low_4p[3]):
                 return 1
 
-            elif (high_4p[1] > high_4p[2] and
+            elif (high_4p[1] >= high_4p[2] and
                   high_4p[2] < high_4p[3] and
-                  low_4p[2] <= low_4p[3]):
+                  min_low_pivot <= low_4p[3]):
                 return 1
 
-            if (low_4p[0] < low_4p[1] and
-                    low_4p[1] >= low_4p[2] > low_4p[3] and
-                    high_4p[2] >= high_4p[3]):
+            if (low_4p[0] < low_4p[1] <= low_4p[2] and
+                    low_4p[2] > low_4p[3] and
+                    max_high_pivot >= high_4p[3]):
                 return -1
 
-            elif (low_4p[1] < low_4p[2] and
+            elif (low_4p[1] <= low_4p[2] and
                   low_4p[2] > low_4p[3] and
-                  high_4p[2] >= high_4p[3]):
+                  max_high_pivot >= high_4p[3]):
                 return -1
 
     @staticmethod
@@ -433,7 +437,8 @@ class TechnicalCondition(models.Model):
 
         # BUY
         if lowest_low > pc72:
-            if (pv1292 is not None and lowest_close_3p >= pv1292_limit_min and
+            if (pv1292 is not None and
+                    lowest_close_3p >= pv1292_limit_min and
                     pv1292_range_min <= low <= pv1292_range_max):
                 return 1292
             elif (lowest_close_3p >= pv305_limit_min and
@@ -445,7 +450,8 @@ class TechnicalCondition(models.Model):
 
         # SELL
         elif highest_high < pv72:
-            if (pc1292 is not None and highest_close_3p <= pc1292_limit_max and
+            if (pc1292 is not None and
+                    highest_close_3p <= pc1292_limit_max and
                     pc1292_range_min <= high <= pc1292_range_max):
                 return -1292
             elif (highest_close_3p <= pc305_limit_max and

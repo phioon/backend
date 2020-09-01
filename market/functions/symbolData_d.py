@@ -422,7 +422,7 @@ def updateTechnicalCondition(symbol, lastXrows):
         ema_trend = TechnicalCondition.ema_trend(varEma1734, varEma3472, varEma72144, varEma144305, varEma305610)
         phibo_alignment = TechnicalCondition.phibo_alignment(pvList[x], pcList[x])
 
-        if x > 305:
+        if x >= 305:
             phibo_test = TechnicalCondition.phibo_test(lowList[x - (17 - 1): x + 1],
                                                        highList[x - (17 - 1): x + 1],
                                                        closeList[x - (17 - 1): x + 1],
@@ -607,8 +607,8 @@ def updateSetupSummary(symbol):
     objs = []
 
     # Ordered by 'd_datetime' ASCENDENT
-    # Considers only setups that happened from 4 years ago.
-    dateFrom = str(datetime.today().date() - timedelta(days=1460))
+    # Considers only setups that happened from 4.23 years ago.
+    dateFrom = str(datetime.today().date() - timedelta(days=1540))
     d_setups = (D_setup.objects.filter(d_raw__asset_symbol__exact=symbol, d_raw__d_datetime__gte=dateFrom)
                 .order_by('asset_datetime'))
 
@@ -659,8 +659,8 @@ def updateSetupSummary(symbol):
         success_rate = phioon_utils.percentage(gain_count, total_count, decimals=1, if_denominator_is_zero=0)
 
         # Determine if setup will be visible at this point of time
-        if (success_rate >= settings.MARKET_MIN_SUCCESS_RATE and
-                setup.risk_reward >= settings.MARKET_MIN_REWARD_RISK):
+        if total_count == 0 or (success_rate >= settings.MARKET_MIN_SUCCESS_RATE and
+                                setup.risk_reward >= settings.MARKET_MIN_REWARD_RISK):
             setup.is_public = True
             setup.save()
 

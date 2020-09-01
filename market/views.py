@@ -436,24 +436,30 @@ def run_offline_raw_data_se_short(request, se_short, apiKey=None):
                                    settings.GAE_QUEUES['market-eod']['location'],
                                    settings.GAE_QUEUES['market-eod']['name'])
         sync_list = []
-        assets = Asset.objects.filter(stockExchange=se_short)
+        stockExchange = StockExchange.objects.get(pk=se_short)
+        assets = Asset.objects.filter(stockExchange=stockExchange)
 
         for asset in assets:
             if asset.draws.count() > 0:
                 sync_list.append(asset)
 
-        for asset in sync_list:
-            url = settings.MARKET_API_BASE + 'task/offline/runRaw/D/asset/'
-            url += asset.asset_symbol + '/'
-            url += settings.API_KEY
-            task = {
-                'http_request': {
-                    'http_method': 'GET',
-                    'url': url}}
-            client.create_task(parent, task)
+        if settings.ACCESS_PRD_DB:
+            for asset in sync_list:
+                url = settings.MARKET_API_BASE + 'task/offline/runRaw/D/asset/'
+                url += asset.asset_symbol + '/'
+                url += settings.API_KEY
+                task = {
+                    'http_request': {
+                        'http_method': 'GET',
+                        'url': url}}
+                client.create_task(parent, task)
+        else:
+            for asset in sync_list:
+                print('Working on %s...' % asset.asset_symbol)
+                onDemand.run_offline_raw_data_asset(symbol=asset.asset_symbol)
 
         obj_res = {
-            'context': 'apiMarket.run_raw_data_se_short',
+            'context': 'apiMarket.run_offline_raw_data_se_short',
             'message': "[%s] Assets to be updated: %s" % (se_short, sync_list)}
         return Response(obj_res)
     else:
@@ -467,6 +473,45 @@ def run_offline_raw_data_asset(request, symbol, apiKey=None):
         onDemand.run_offline_raw_data_asset(symbol=symbol)
 
         obj_res = {'message': "success"}
+        return Response(obj_res)
+    else:
+        return Response(status=status.HTTP_403_FORBIDDEN)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def run_offline_setup_se_short(request, se_short, apiKey=None):
+    if apiKey == settings.API_KEY:
+        client = tasks_v2.CloudTasksClient()
+        parent = client.queue_path(settings.GAE_PROJECT,
+                                   settings.GAE_QUEUES['market-eod']['location'],
+                                   settings.GAE_QUEUES['market-eod']['name'])
+        sync_list = []
+        stockExchange = StockExchange.objects.get(pk=se_short)
+        assets = Asset.objects.filter(stockExchange=stockExchange)
+
+        for asset in assets:
+            if asset.draws.count() > 0:
+                sync_list.append(asset)
+
+        if settings.ACCESS_PRD_DB:
+            for asset in sync_list:
+                url = settings.MARKET_API_BASE + 'task/offline/runSetup/D/asset/'
+                url += asset.asset_symbol + '/'
+                url += settings.API_KEY
+                task = {
+                    'http_request': {
+                        'http_method': 'GET',
+                        'url': url}}
+                client.create_task(parent, task)
+        else:
+            for asset in sync_list:
+                print('Working on %s...' % asset.asset_symbol)
+                onDemand.run_offline_setup_asset(symbol=asset.asset_symbol)
+
+        obj_res = {
+            'context': 'apiMarket.run_offline_setup_se_short',
+            'message': "[%s] Assets to be updated: %s" % (se_short, sync_list)}
         return Response(obj_res)
     else:
         return Response(status=status.HTTP_403_FORBIDDEN)
@@ -578,7 +623,7 @@ def run_raw_data_se_short(request, se_short, last_x_rows=5, apiKey=None):
                 sync_list.append(asset)
                 last_periods = 0
 
-        if settings.ENVIRONMENT == 'PRD':
+        if settings.ACCESS_PRD_DB:
             for asset in sync_list:
                 url = settings.MARKET_API_BASE + 'task/runRaw/D/asset/'
                 url += asset.asset_symbol + '/'
@@ -589,7 +634,7 @@ def run_raw_data_se_short(request, se_short, last_x_rows=5, apiKey=None):
                         'http_method': 'GET',
                         'url': url}}
                 client.create_task(parent, task)
-        elif settings.ENVIRONMENT == 'DEV' and settings.ACCESS_PRD_DB is False:
+        else:
             for asset in sync_list:
                 print('Working on %s...' % asset.asset_symbol)
                 daily.run_asset_raw(symbol=asset.asset_symbol, lastXrows=last_x_rows)
@@ -616,19 +661,22 @@ def update_realtime_se_short(request, se_short, apiKey=None):
             obj_res = {'message': "Today is not a weekday."}
             return Response(obj_res)
 
+        stockExchange = StockExchange.objects.get(pk=se_short)
+
         assets_with_open_suggestion = D_setupSummary.objects \
             .filter(has_position_open=True) \
             .values_list('asset_symbol', flat=True).distinct()
 
         assets = Asset.objects.filter(
-            Q(last_access_time__gte=a_month_ago) | Q(asset_symbol__in=assets_with_open_suggestion))
+            Q(last_access_time__gte=a_month_ago) | Q(asset_symbol__in=assets_with_open_suggestion),
+            stockExchange=stockExchange)
 
         client = tasks_v2.CloudTasksClient()
         parent = client.queue_path(settings.GAE_PROJECT,
                                    settings.GAE_QUEUES['market-realtime']['location'],
                                    settings.GAE_QUEUES['market-realtime']['name'])
 
-        with ThreadPool() as t:
+        if settings.ACCESS_PRD_DB:
             for asset in assets:
                 url = settings.MARKET_API_BASE + 'task/updateRealtime/asset/'
                 url += asset.asset_symbol + '/'
@@ -637,7 +685,11 @@ def update_realtime_se_short(request, se_short, apiKey=None):
                     'http_request': {
                         'http_method': 'GET',
                         'url': url}}
-                t.submit(client.create_task, parent, task)
+                client.create_task(parent, task)
+        else:
+            for asset in assets:
+                print('Working on %s...' % asset.asset_symbol)
+                m15.update_realtime_asset(asset.asset_symbol)
 
         duration = str(round(time() - st, 2))
         obj_res = {'message': "Task '%s' for '%s' took %s seconds to complete."
