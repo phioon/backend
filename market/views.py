@@ -65,9 +65,7 @@ class AssetList(generics.ListAPIView):
         stockExchange = self.request.query_params.get('stockExchange')
         assets = self.request.query_params.get('assets')
 
-        if stockExchange:
-            return Asset.objects.filter(stockExchange__se_short__exact=stockExchange)
-        else:
+        if assets:
             assets = assets.split(',')
 
             # Log into DB last_access_time. It is used for tracking usage of assets
@@ -75,6 +73,8 @@ class AssetList(generics.ListAPIView):
             a.frontend_access(assets)
 
             return Asset.objects.filter(asset_symbol__in=assets)
+        else:
+            return Asset.objects.filter(stockExchange__se_short__exact=stockExchange)
 
 
 @api_view(['GET'])
