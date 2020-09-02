@@ -10,7 +10,7 @@ from django_engine import settings
 from .functions import utils as phioon_utils
 from . import serializers
 from .models import StockExchange, Asset, TechnicalCondition
-from .models import Realtime, D_raw, D_pvpc, D_ema, D_roc, D_setup, D_setupSummary
+from .models import D_raw, D_pvpc, D_ema, D_roc, D_setup, D_setupSummary
 from .cron import m15, daily, monthly, onDemand
 
 from django.utils import timezone
@@ -22,7 +22,6 @@ import re
 import copy
 
 from google.cloud import tasks_v2
-from concurrent.futures import ThreadPoolExecutor as ThreadPool
 
 
 # INIT

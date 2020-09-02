@@ -25,13 +25,13 @@ urlpatterns += [
          name='Update Asset List'),
     path('cron/runRaw/D/se_short/<se_short>/<int:last_x_rows>/<apiKey>', views.run_raw_data_se_short,
          name='Run Raw data for SE'),
-    path('cron/updateAssetProfile/<symbol>/<apiKey>', views.update_asset_profile,
-         name='Update Asset Profile'),
     # Real-time
     path('cron/updateRealtime/se_short/<se_short>/<apiKey>', views.update_realtime_se_short,
          name='Update Realtime for SE'),
 
     # GCloud tasks
+    path('task/updateProfile/asset/<symbol>/<apiKey>', views.update_asset_profile,
+         name='Update Asset Profile'),
     path('task/runRaw/D/asset/<symbol>/<int:last_x_rows>/<apiKey>', views.run_raw_data_asset,
          name='Run Raw data for Asset'),
     path('task/updateRealtime/asset/<symbol>/<apiKey>', views.update_realtime_asset,

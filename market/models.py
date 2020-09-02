@@ -1,7 +1,10 @@
+from django_engine import settings
 from market import managers
 from .functions import symbolData_d
 from datetime import datetime, timedelta
 from django.db import models
+
+from google.cloud import tasks_v2
 
 __dateFrom_D__ = str(datetime.today().date() - timedelta(days=4380))
 __dateFrom_m60__ = str(datetime.today().date() - timedelta(days=730))
@@ -609,8 +612,12 @@ class Asset(models.Model):
     def update_assets_by_stock_exchange(self, se_short):
         provider_manager = managers.ProviderManager()
         data = provider_manager.get_assets_by_stock_exchange(se_short=se_short)
-
         stockExchange = StockExchange.objects.get(se_short=se_short)
+
+        client = tasks_v2.CloudTasksClient()
+        parent = client.queue_path(settings.GAE_PROJECT,
+                                   settings.GAE_QUEUES['market-asset']['location'],
+                                   settings.GAE_QUEUES['market-asset']['name'])
 
         for obj in data:
             asset_symbol = obj['asset_symbol']
@@ -634,7 +641,18 @@ class Asset(models.Model):
                 update_profile = True
 
             if update_profile:
-                profile.update_asset_profile(asset_symbol)
+                if settings.ACCESS_PRD_DB:
+                    url = settings.MARKET_API_BASE + 'task/updateProfile/asset/'
+                    url += asset.asset_symbol + '/'
+                    url += settings.API_KEY
+                    task = {
+                        'http_request': {
+                            'http_method': 'GET',
+                            'url': url}}
+                    client.create_task(parent, task)
+                else:
+                    print('Updating Profile for %s...' % asset.asset_symbol)
+                    profile.update_asset_profile(asset.asset_symbol)
 
     # D_Raw.updateAsset calls it every day
     def updateStats(self, symbol, lastXrows):

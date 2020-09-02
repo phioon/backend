@@ -11,6 +11,10 @@ DB_DEFAULT = {
 }
 GAE_PROJECT = 'phioon'
 GAE_QUEUES = {
+    'market-asset': {
+        'name': 'market-asset',
+        'location': 'southamerica-east1'
+    },
     'market-eod': {
         'name': 'market-eod',
         'location': 'southamerica-east1'
