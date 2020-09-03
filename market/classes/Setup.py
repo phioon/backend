@@ -193,7 +193,7 @@ class Setup:
         fiboProjection = utils.fibonacci_projection(type='buy',
                                                     highList=highList,
                                                     lowList=lowList,
-                                                    projection_percentage=1.2,
+                                                    projection_percentage=1,
                                                     min_periods_to_consider=34,
                                                     max_periods_to_consider=144,
                                                     inc_interval=4)
@@ -227,7 +227,7 @@ class Setup:
         fiboProjection = utils.fibonacci_projection(type='buy',
                                                     highList=highList,
                                                     lowList=lowList,
-                                                    projection_percentage=1.2,
+                                                    projection_percentage=1,
                                                     min_periods_to_consider=17,
                                                     max_periods_to_consider=72,
                                                     inc_interval=4)
@@ -261,7 +261,7 @@ class Setup:
         fiboProjection = utils.fibonacci_projection(type='buy',
                                                     highList=highList,
                                                     lowList=lowList,
-                                                    projection_percentage=0.98,
+                                                    projection_percentage=0.95,
                                                     min_periods_to_consider=8,
                                                     max_periods_to_consider=34,
                                                     inc_interval=2)
@@ -298,7 +298,7 @@ class Setup:
         fiboProjection = utils.fibonacci_projection(type='sell',
                                                     highList=highList,
                                                     lowList=lowList,
-                                                    projection_percentage=1,
+                                                    projection_percentage=0.7,
                                                     min_periods_to_consider=34,
                                                     max_periods_to_consider=144,
                                                     inc_interval=4)
@@ -332,7 +332,7 @@ class Setup:
         fiboProjection = utils.fibonacci_projection(type='sell',
                                                     highList=highList,
                                                     lowList=lowList,
-                                                    projection_percentage=0.9,
+                                                    projection_percentage=0.7,
                                                     min_periods_to_consider=17,
                                                     max_periods_to_consider=72,
                                                     inc_interval=4)
@@ -366,7 +366,7 @@ class Setup:
         fiboProjection = utils.fibonacci_projection(type='sell',
                                                     highList=highList,
                                                     lowList=lowList,
-                                                    projection_percentage=0.9,
+                                                    projection_percentage=0.75,
                                                     min_periods_to_consider=8,
                                                     max_periods_to_consider=34,
                                                     inc_interval=2)
