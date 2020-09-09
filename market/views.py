@@ -94,27 +94,7 @@ def IndicatorList(request):
     d_ema_fields = D_ema._meta.fields
     d_pvpc_fields = D_pvpc._meta.fields
     d_roc_fields = D_roc._meta.fields
-    generic_time_interval = 'any'
 
-    # 1. Any Interval
-    # 1.1 Zero
-    category = 'centered_oscillator'
-    subcategory = 'zero_line'
-    indicator = 'zero_line'
-    periods = None
-    time_interval = 'any'
-
-    obj = {
-        'id': 'zero_line',
-        'label_id': 'zero_line',
-        'category': category,
-        'subcategory': subcategory,
-        'indicator': indicator,
-        'periods': periods,
-        'time_interval': time_interval,
-        'relationships': []
-    }
-    result.append(obj)
     # 2. Daily
     time_interval = 'd'
     # 2.1 Price Lagging: Quote
@@ -124,29 +104,27 @@ def IndicatorList(request):
         indicator = 'quote'
 
         if field.name in consider_fields['d_raw']:
-            generic_obj = None
             periods = 0
             generic_id = str(field.name)[str(field.name).index('_') + 1:]
 
-            obj = {
-                'id': field.name,
-                'label_id': generic_id,
-                'category': category,
-                'subcategory': subcategory,
-                'indicator': indicator,
-                'periods': periods,
-                'time_interval': time_interval,
-                'relationships': []
-            }
+            obj = phioon_utils.retrieve_obj_from_obj_list(result, 'id', generic_id)
+            if not obj:
+                # Create it
+                obj = {
+                    'id': generic_id,
+                    'instances': [],
+                    'category': category,
+                    'subcategory': subcategory,
+                    'indicator': indicator,
+                    'periods': periods
+                }
 
-            if not phioon_utils.retrieve_obj_from_obj_list(result, 'id', generic_id):
-                generic_obj = copy.deepcopy(obj)
-                generic_obj['id'] = generic_id
-                generic_obj['time_interval'] = generic_time_interval
-
-            if generic_obj:
-                result.append(generic_obj)
+            obj['instances'].append({
+                'name': field.name,
+                'time_interval': time_interval
+            })
             result.append(obj)
+
     # 2.2 Price Lagging: EMA
     for field in d_ema_fields:
         category = 'price_lagging'
@@ -154,41 +132,27 @@ def IndicatorList(request):
         indicator = 'ema'
 
         if field.name not in ignore_fields['ema']:
-            generic_obj = None
             periods = int(re.findall('[0-9]+', field.name)[0])
             generic_id = str(field.name)[str(field.name).index('_') + 1:]
 
-            obj = {
-                'id': field.name,
-                'label_id': generic_id,
-                'category': category,
-                'subcategory': subcategory,
-                'indicator': indicator,
-                'periods': periods,
-                'time_interval': time_interval,
-                'relationships': []
-            }
+            obj = phioon_utils.retrieve_obj_from_obj_list(result, 'id', generic_id)
+            if not obj:
+                # Create it
+                obj = {
+                    'id': generic_id,
+                    'instances': [],
+                    'category': category,
+                    'subcategory': subcategory,
+                    'indicator': indicator,
+                    'periods': periods
+                }
 
-            generic_roc_id = generic_id.replace('ema_', 'ema')
-            generic_roc_id = 'roc_' + generic_roc_id
-            roc_id = time_interval + '_' + generic_roc_id
-
-            if not phioon_utils.retrieve_obj_from_obj_list(result, 'id', generic_id):
-                generic_obj = copy.deepcopy(obj)
-                generic_obj['id'] = generic_id
-                generic_obj['time_interval'] = generic_time_interval
-
-            for field in d_roc_fields:
-                if roc_id == field.name:
-                    obj['relationships'].append({'id': roc_id})
-
-                    if generic_obj:
-                        generic_obj['relationships'].append({'id': generic_roc_id})
-                    break
-
-            if generic_obj:
-                result.append(generic_obj)
+            obj['instances'].append({
+                'name': field.name,
+                'time_interval': time_interval
+            })
             result.append(obj)
+
     # 2.3 Price Lagging: PHIBO
     for field in d_pvpc_fields:
         category = 'price_lagging'
@@ -199,26 +163,24 @@ def IndicatorList(request):
             periods = int(re.findall('[0-9]+', field.name)[0])
             generic_id = str(field.name)[str(field.name).index('_') + 1:]
 
-            generic_obj = None
-            obj = {
-                'id': field.name,
-                'label_id': generic_id,
-                'category': category,
-                'subcategory': subcategory,
-                'indicator': indicator,
-                'periods': periods,
-                'time_interval': time_interval,
-                'relationships': []
-            }
+            obj = phioon_utils.retrieve_obj_from_obj_list(result, 'id', generic_id)
+            if not obj:
+                # Create it
+                obj = {
+                    'id': generic_id,
+                    'instances': [],
+                    'category': category,
+                    'subcategory': subcategory,
+                    'indicator': indicator,
+                    'periods': periods
+                }
 
-            if not phioon_utils.retrieve_obj_from_obj_list(result, 'id', generic_id):
-                generic_obj = copy.deepcopy(obj)
-                generic_obj['id'] = generic_id
-                generic_obj['time_interval'] = generic_time_interval
-
-            if generic_obj:
-                result.append(generic_obj)
+            obj['instances'].append({
+                'name': field.name,
+                'time_interval': time_interval
+            })
             result.append(obj)
+
     # 2.4 Centered Oscillator: ROC
     for field in d_roc_fields:
         category = 'centered_oscillator'
@@ -229,25 +191,22 @@ def IndicatorList(request):
             periods = int(re.findall('[0-9]+', field.name)[0])
             generic_id = str(field.name)[str(field.name).index('_') + 1:]
 
-            generic_obj = None
-            obj = {
-                'id': field.name,
-                'label_id': generic_id,
-                'category': category,
-                'subcategory': subcategory,
-                'indicator': indicator,
-                'periods': periods,
-                'time_interval': time_interval,
-                'relationships': []
-            }
+            obj = phioon_utils.retrieve_obj_from_obj_list(result, 'id', generic_id)
+            if not obj:
+                # Create it
+                obj = {
+                    'id': generic_id,
+                    'instances': [],
+                    'category': category,
+                    'subcategory': subcategory,
+                    'indicator': indicator,
+                    'periods': periods
+                }
 
-            if not phioon_utils.retrieve_obj_from_obj_list(result, 'id', generic_id):
-                generic_obj = copy.deepcopy(obj)
-                generic_obj['id'] = generic_id
-                generic_obj['time_interval'] = generic_time_interval
-
-            if generic_obj:
-                result.append(generic_obj)
+            obj['instances'].append({
+                'name': field.name,
+                'time_interval': time_interval
+            })
             result.append(obj)
 
     return Response(result)
