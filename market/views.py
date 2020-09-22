@@ -1,5 +1,6 @@
 from django.db.models import Q, Max
 from django.http import HttpResponse
+from django.core import serializers as django_serializers
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework import generics, permissions
 from rest_framework import status
@@ -17,9 +18,9 @@ from django.utils import timezone
 from datetime import datetime, timedelta
 from time import time
 import pytz
+import json
 
 import re
-import copy
 
 from google.cloud import tasks_v2
 
@@ -52,17 +53,23 @@ class StockExchangeList(generics.ListCreateAPIView):
 # Integration between Backend and Frontend
 class AssetList(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
+    serializer_class = serializers.AssetDetailSerializer
 
-    def get_serializer_class(self):
-        detailed = self.request.query_params.get('detailed')
-        if str(detailed).lower() == 'true':
-            return serializers.AssetDetailSerializer
-        else:
-            return serializers.AssetBasicSerializer
+    # def get_serializer_class(self):
+    #     detailed = self.request.data['detailed']
+    #
+    #     if str(detailed).lower() == 'true':
+    #         return serializers.AssetDetailSerializer
+    #     else:
+    #         return serializers.AssetBasicSerializer
 
     def get_queryset(self):
-        stockExchange = self.request.query_params.get('stockExchange')
-        assets = self.request.query_params.get('assets')
+        stockExchange = assets = None
+
+        if 'assets' in self.request.data:
+            assets = self.request.data['assets']
+        if 'stockExchange' in self.request.data:
+            stockExchange = self.request.data['stockExchange']
 
         if assets:
             assets = assets.split(',')
@@ -80,134 +87,118 @@ class AssetList(generics.ListAPIView):
 @permission_classes([permissions.IsAuthenticated])
 def IndicatorList(request):
     result = []
-    consider_fields = {
-        'd_raw': ['d_open', 'd_high', 'd_low', 'd_close']
-    }
-    ignore_fields = {
-        'raw': ['id', 'asset_symbol', 'asset_datetime', 'last_trade_time', 'pct_change'],
-        'ema': ['id', 'd_raw', 'asset_datetime'],
-        'phibo': ['id', 'd_raw', 'asset_datetime'],
-        'roc': ['id', 'd_raw', 'asset_datetime', 'd_roc_close2', 'd_roc_close3', 'd_roc_high2', 'd_roc_low2'],
-    }
+
     # Requirements
-    d_raw_fields = D_raw._meta.fields
-    d_ema_fields = D_ema._meta.fields
-    d_pvpc_fields = D_pvpc._meta.fields
-    d_roc_fields = D_roc._meta.fields
+    d_raw_fields = D_raw().get_field_list(field_type='indicator')
+    d_ema_fields = D_ema().get_field_list(field_type='indicator')
+    d_pvpc_fields = D_pvpc().get_field_list(field_type='indicator')
+    d_roc_fields = D_roc().get_field_list(field_type='indicator')
 
     # 2. Daily
     time_interval = 'd'
     # 2.1 Price Lagging: Quote
-    for field in d_raw_fields:
-        category = 'price_lagging'
-        subcategory = 'quote'
-        indicator = 'quote'
+    category = 'price_lagging'
+    subcategory = 'quote'
+    indicator = 'quote'
+    for field_name in d_raw_fields:
+        periods = 0
+        generic_id = field_name[field_name.index('_') + 1:]
 
-        if field.name in consider_fields['d_raw']:
-            periods = 0
-            generic_id = str(field.name)[str(field.name).index('_') + 1:]
+        obj = phioon_utils.retrieve_obj_from_obj_list(result, 'id', generic_id)
+        if not obj:
+            # Create it
+            obj = {
+                'id': generic_id,
+                'instances': [],
+                'category': category,
+                'subcategory': subcategory,
+                'indicator': indicator,
+                'periods': periods
+            }
 
-            obj = phioon_utils.retrieve_obj_from_obj_list(result, 'id', generic_id)
-            if not obj:
-                # Create it
-                obj = {
-                    'id': generic_id,
-                    'instances': [],
-                    'category': category,
-                    'subcategory': subcategory,
-                    'indicator': indicator,
-                    'periods': periods
-                }
-
-            obj['instances'].append({
-                'name': field.name,
-                'time_interval': time_interval
-            })
-            result.append(obj)
+        obj['instances'].append({
+            'name': field_name,
+            'interval': time_interval
+        })
+        result.append(obj)
 
     # 2.2 Price Lagging: EMA
-    for field in d_ema_fields:
-        category = 'price_lagging'
-        subcategory = 'moving_average'
-        indicator = 'ema'
+    category = 'price_lagging'
+    subcategory = 'moving_average'
+    indicator = 'ema'
+    for field_name in d_ema_fields:
+        periods = int(re.findall('[0-9]+', field_name)[0])
+        generic_id = str(field_name)[str(field_name).index('_') + 1:]
 
-        if field.name not in ignore_fields['ema']:
-            periods = int(re.findall('[0-9]+', field.name)[0])
-            generic_id = str(field.name)[str(field.name).index('_') + 1:]
+        obj = phioon_utils.retrieve_obj_from_obj_list(result, 'id', generic_id)
+        if not obj:
+            # Create it
+            obj = {
+                'id': generic_id,
+                'instances': [],
+                'category': category,
+                'subcategory': subcategory,
+                'indicator': indicator,
+                'periods': periods
+            }
 
-            obj = phioon_utils.retrieve_obj_from_obj_list(result, 'id', generic_id)
-            if not obj:
-                # Create it
-                obj = {
-                    'id': generic_id,
-                    'instances': [],
-                    'category': category,
-                    'subcategory': subcategory,
-                    'indicator': indicator,
-                    'periods': periods
-                }
-
-            obj['instances'].append({
-                'name': field.name,
-                'time_interval': time_interval
-            })
-            result.append(obj)
+        obj['instances'].append({
+            'name': field_name,
+            'interval': time_interval
+        })
+        result.append(obj)
 
     # 2.3 Price Lagging: PHIBO
-    for field in d_pvpc_fields:
-        category = 'price_lagging'
-        subcategory = 'phibo'
-        indicator = 'pvpc'
+    category = 'price_lagging'
+    subcategory = 'phibo'
+    indicator = 'pvpc'
+    for field_name in d_pvpc_fields:
+        periods = int(re.findall('[0-9]+', field_name)[0])
+        generic_id = str(field_name)[str(field_name).index('_') + 1:]
 
-        if field.name not in ignore_fields['phibo']:
-            periods = int(re.findall('[0-9]+', field.name)[0])
-            generic_id = str(field.name)[str(field.name).index('_') + 1:]
+        obj = phioon_utils.retrieve_obj_from_obj_list(result, 'id', generic_id)
+        if not obj:
+            # Create it
+            obj = {
+                'id': generic_id,
+                'instances': [],
+                'category': category,
+                'subcategory': subcategory,
+                'indicator': indicator,
+                'periods': periods
+            }
 
-            obj = phioon_utils.retrieve_obj_from_obj_list(result, 'id', generic_id)
-            if not obj:
-                # Create it
-                obj = {
-                    'id': generic_id,
-                    'instances': [],
-                    'category': category,
-                    'subcategory': subcategory,
-                    'indicator': indicator,
-                    'periods': periods
-                }
-
-            obj['instances'].append({
-                'name': field.name,
-                'time_interval': time_interval
-            })
-            result.append(obj)
+        obj['instances'].append({
+            'name': field_name,
+            'interval': time_interval
+        })
+        result.append(obj)
 
     # 2.4 Centered Oscillator: ROC
-    for field in d_roc_fields:
-        category = 'centered_oscillator'
-        subcategory = 'roc'
-        indicator = 'roc'
+    category = 'centered_oscillator'
+    subcategory = 'roc'
+    indicator = 'roc'
+    for field_name in d_roc_fields:
+        periods = int(re.findall('[0-9]+', field_name)[0])
+        generic_id = str(field_name)[str(field_name).index('_') + 1:]
 
-        if field.name not in ignore_fields['roc']:
-            periods = int(re.findall('[0-9]+', field.name)[0])
-            generic_id = str(field.name)[str(field.name).index('_') + 1:]
+        obj = phioon_utils.retrieve_obj_from_obj_list(result, 'id', generic_id)
+        if not obj:
+            # Create it
+            obj = {
+                'id': generic_id,
+                'instances': [],
+                'category': category,
+                'subcategory': subcategory,
+                'indicator': indicator,
+                'periods': periods
+            }
 
-            obj = phioon_utils.retrieve_obj_from_obj_list(result, 'id', generic_id)
-            if not obj:
-                # Create it
-                obj = {
-                    'id': generic_id,
-                    'instances': [],
-                    'category': category,
-                    'subcategory': subcategory,
-                    'indicator': indicator,
-                    'periods': periods
-                }
-
-            obj['instances'].append({
-                'name': field.name,
-                'time_interval': time_interval
-            })
-            result.append(obj)
+        obj['instances'].append({
+            'name': field_name,
+            'interval': time_interval
+        })
+        result.append(obj)
 
     return Response(result)
 
@@ -237,97 +228,159 @@ class D_RawList(generics.ListAPIView):
                                     d_datetime__lte=dateTo + ' 23:59:59')
 
 
-class D_RawLatestList(generics.ListAPIView):
-    permission_classes = [permissions.IsAuthenticated]
-    serializer_class = serializers.D_rawBasicSerializer
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def D_EmaLatestList(request):
+    stockExchange = request.query_params.get('stockExchange')
+    assets = request.query_params.get('assets')
+    lastPeriods = int(request.query_params.get('lastPeriods'))
+    instances = request.query_params.get('instances')
+    instances = instances.split(',')
+    result = []
 
-    def get_queryset(self):
-        stockExchange = self.request.query_params.get('stockExchange')
-        assets = self.request.query_params.get('assets')
-        result = []
+    if lastPeriods is None or lastPeriods <= 0 or lastPeriods >= 5:
+        lastPeriods = 1
 
-        if stockExchange:
-            latest_datetime_by_asset = (D_raw.objects.filter(asset_symbol__stockExchange__exact=stockExchange)
-                                        .values('asset_symbol')
-                                        .annotate(latest_datetime=Max('d_datetime')))
-        else:
-            assets = assets.split(',')
-            latest_datetime_by_asset = (D_raw.objects.filter(asset_symbol__in=assets)
-                                        .values('asset_symbol')
-                                        .annotate(latest_datetime=Max('d_datetime')))
+    dateFrom = D_raw.objects.values('d_datetime').distinct().order_by('-d_datetime')[lastPeriods - 1]['d_datetime']
 
-        for obj in latest_datetime_by_asset:
-            try:
-                latest_data = D_raw.objects.get(asset_symbol=obj['asset_symbol'],
-                                                d_datetime__exact=obj['latest_datetime'])
-            except D_raw.DoesNotExist:
-                continue
+    # Define which assets are selected
+    if stockExchange:
+        assets = Asset.objects.filter(stockExchange=stockExchange, is_considered_for_analysis=True)
+    else:
+        assets = assets.split(',')
+        assets = Asset.objects.filter(pk__in=assets, is_considered_for_analysis=True)
 
-            result.append(latest_data)
+    # Append data into result
+    for asset in assets:
+        objs = list(D_ema.objects.filter(d_raw__asset_symbol=asset, d_raw__d_datetime__gte=dateFrom)
+                    .order_by('-asset_datetime'))
 
-        return result
+        if objs:
+            asset_data = {'asset_symbol': asset.asset_symbol}
 
+            for x in range(len(objs)):
+                # For each time interval...
+                for i in instances:
+                    try:
+                        # Add instance data into this asset's object.
+                        key = str(i) + '__p' + str(x)
+                        asset_data[key] = getattr(objs[x], i)
+                    except AttributeError:
+                        # Instance doesn't exist
+                        continue
 
-class D_EmaLatestList(generics.ListAPIView):
-    permission_classes = [permissions.IsAuthenticated]
-    serializer_class = serializers.D_emaSerializer
+            result.append(asset_data)
 
-    def get_queryset(self):
-        stockExchange = self.request.query_params.get('stockExchange')
-        assets = self.request.query_params.get('assets')
-        result = []
-
-        if stockExchange:
-            latest_datetime_by_asset = (D_raw.objects.filter(asset_symbol__stockExchange__exact=stockExchange)
-                                        .values('asset_symbol')
-                                        .annotate(latest_datetime=Max('d_datetime')))
-        else:
-            assets = assets.split(',')
-            latest_datetime_by_asset = (D_raw.objects.filter(asset_symbol__in=assets)
-                                        .values('asset_symbol')
-                                        .annotate(latest_datetime=Max('d_datetime')))
-
-        for obj in latest_datetime_by_asset:
-            try:
-                latest_data = D_ema.objects.get(d_raw__asset_symbol=obj['asset_symbol'],
-                                                d_raw__d_datetime__exact=obj['latest_datetime'])
-            except D_ema.DoesNotExist:
-                continue
-
-            result.append(latest_data)
-
-        return result
+    return Response(result)
 
 
-class D_PhiboLatestList(generics.ListAPIView):
-    permission_classes = [permissions.IsAuthenticated]
-    serializer_class = serializers.D_pvpcSerializer
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def D_RawLatestList(request):
+    stockExchange = request.query_params.get('stockExchange')
+    assets = request.query_params.get('assets')
+    lastPeriods = int(request.query_params.get('lastPeriods'))
+    instances = request.query_params.get('instances')
+    instances = instances.split(',')
+    result = []
 
-    def get_queryset(self):
-        stockExchange = self.request.query_params.get('stockExchange')
-        assets = self.request.query_params.get('assets')
-        result = []
+    if lastPeriods is None or lastPeriods <= 0 or lastPeriods >= 5:
+        lastPeriods = 1
 
-        if stockExchange:
-            latest_datetime_by_asset = (D_raw.objects.filter(asset_symbol__stockExchange__exact=stockExchange)
-                                        .values('asset_symbol')
-                                        .annotate(latest_datetime=Max('d_datetime')))
-        else:
-            assets = assets.split(',')
-            latest_datetime_by_asset = (D_raw.objects.filter(asset_symbol__in=assets)
-                                        .values('asset_symbol')
-                                        .annotate(latest_datetime=Max('d_datetime')))
+    dateFrom = D_raw.objects.values('d_datetime').distinct().order_by('-d_datetime')[lastPeriods - 1]['d_datetime']
 
-        for obj in latest_datetime_by_asset:
-            try:
-                latest_data = D_pvpc.objects.get(d_raw__asset_symbol=obj['asset_symbol'],
-                                                 d_raw__d_datetime__exact=obj['latest_datetime'])
-            except D_pvpc.DoesNotExist:
-                continue
+    # Define which assets are selected
+    if stockExchange:
+        assets = Asset.objects.filter(stockExchange=stockExchange, is_considered_for_analysis=True)
+    else:
+        assets = assets.split(',')
+        assets = Asset.objects.filter(pk__in=assets, is_considered_for_analysis=True)
 
-            result.append(latest_data)
+    # Append data into result
+    for asset in assets:
+        raw_objs = list(D_raw.objects.filter(asset_symbol=asset, d_datetime__gte=dateFrom)
+                        .order_by('-asset_datetime'))
+        raw_objs = json.loads(django_serializers.serialize('json', raw_objs))
 
-        return result
+        if raw_objs:
+            if hasattr(asset, 'realtime'):
+                # Asset has Realtime instance
+                last_trade_time = asset.realtime.last_trade_time
+
+                if last_trade_time > raw_objs[0]['fields']['d_datetime']:
+                    # Realtime data is newer than raw data...
+                    # Inserts new item into position 0
+                    raw_objs.insert(0, {
+                        'fields': {
+                            'd_open': asset.realtime.open,
+                            'd_high': asset.realtime.high,
+                            'd_low': asset.realtime.low,
+                            'd_close': asset.realtime.price,
+                        }
+                    })
+                    # Removes last item
+                    raw_objs.pop()
+
+            asset_data = {'asset_symbol': asset.asset_symbol}
+
+            for x in range(len(raw_objs)):
+                obj = raw_objs[x]
+                # For each time interval...
+                for i in instances:
+                    # Add instance data into this asset's object, accordingly to its period
+                    key = str(i) + '__p' + str(x)
+                    if i in obj['fields']:
+                        asset_data[key] = obj['fields'][i]
+
+            result.append(asset_data)
+
+    return Response(result)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def D_PhiboLatestList(request):
+    stockExchange = request.query_params.get('stockExchange')
+    assets = request.query_params.get('assets')
+    lastPeriods = int(request.query_params.get('lastPeriods'))
+    instances = request.query_params.get('instances')
+    instances = instances.split(',')
+    result = []
+
+    if lastPeriods is None or lastPeriods <= 0 or lastPeriods >= 5:
+        lastPeriods = 1
+
+    dateFrom = D_raw.objects.values('d_datetime').distinct().order_by('-d_datetime')[lastPeriods - 1]['d_datetime']
+
+    # Define which assets are selected
+    if stockExchange:
+        assets = Asset.objects.filter(stockExchange=stockExchange, is_considered_for_analysis=True)
+    else:
+        assets = assets.split(',')
+        assets = Asset.objects.filter(pk__in=assets, is_considered_for_analysis=True)
+
+    # Append data into result
+    for asset in assets:
+        objs = list(D_pvpc.objects.filter(d_raw__asset_symbol=asset, d_raw__d_datetime__gte=dateFrom)
+                    .order_by('-asset_datetime'))
+
+        if objs:
+            asset_data = {'asset_symbol': asset.asset_symbol}
+
+            for x in range(len(objs)):
+                # For each time interval...
+                for i in instances:
+                    try:
+                        # Add instance data into this asset's object.
+                        key = str(i) + '__p' + str(x)
+                        asset_data[key] = getattr(objs[x], i)
+                    except AttributeError:
+                        # Instance doesn't exist
+                        continue
+
+            result.append(asset_data)
+
+    return Response(result)
 
 
 class D_SetupList(generics.ListAPIView):
@@ -619,15 +672,10 @@ def update_realtime_se_short(request, se_short, apiKey=None):
             obj_res = {'message': "Today is not a weekday."}
             return Response(obj_res)
 
-        stockExchange = StockExchange.objects.get(pk=se_short)
-
-        assets_with_open_suggestion = D_setupSummary.objects \
-            .filter(has_position_open=True) \
-            .values_list('asset_symbol', flat=True).distinct()
-
         assets = Asset.objects.filter(
-            Q(last_access_time__gte=a_month_ago) | Q(asset_symbol__in=assets_with_open_suggestion),
-            stockExchange=stockExchange)
+            Q(last_access_time__gte=a_month_ago) | Q(is_considered_for_analysis=True),
+            stockExchange=se_short
+        )
 
         client = tasks_v2.CloudTasksClient()
         parent = client.queue_path(settings.GAE_PROJECT,

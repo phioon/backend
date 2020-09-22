@@ -1,5 +1,6 @@
 from django.contrib.auth.models import User
 from . import models
+from .functions import utils as phioon_utils
 from rest_framework import serializers
 
 
@@ -43,17 +44,73 @@ class AssetDetailSerializer(serializers.ModelSerializer):
     country_code = serializers.ReadOnlyField(source='profile.country_code')
     sector_id = serializers.ReadOnlyField(source='profile.sector_id')
 
-    asset_lastTradeTime = serializers.ReadOnlyField(source='realtime.last_trade_time')
-    asset_high = serializers.ReadOnlyField(source='realtime.high')
-    asset_low = serializers.ReadOnlyField(source='realtime.low')
-    asset_price = serializers.ReadOnlyField(source='realtime.price')
-    asset_pct_change = serializers.ReadOnlyField(source='realtime.pct_change')
+    last_trade_time = serializers.SerializerMethodField()
+    open = serializers.SerializerMethodField()
+    high = serializers.SerializerMethodField()
+    low = serializers.SerializerMethodField()
+    price = serializers.SerializerMethodField()
+    pct_change = serializers.ReadOnlyField(source='realtime.pct_change')
 
     class Meta:
         model = models.Asset
         fields = ['stockExchange', 'asset_symbol',
                   'asset_label', 'asset_name', 'country_code', 'sector_id',
-                  'asset_lastTradeTime', 'asset_high', 'asset_low', 'asset_price', 'asset_pct_change']
+                  'last_trade_time', 'open', 'high', 'low', 'price', 'pct_change']
+
+    def get_last_trade_time(self, obj):
+        if hasattr(obj, 'realtime'):
+            # Check if Asset has Realtime instance
+            last_trade_time = obj.realtime.last_trade_time
+        else:
+            # There is no Realtime instance...
+            d_datetime = obj.draws.values('d_datetime').distinct().order_by('-d_datetime')[0]['d_datetime']
+            d_datetime = str(d_datetime)[0:10]
+            last_trade_time = d_datetime + ' ' + str(obj.stockExchange.se_endTime)
+            last_trade_time = phioon_utils.convert_naive_to_utc(strDatetime=last_trade_time,
+                                                                tz=obj.stockExchange.se_timezone)
+            last_trade_time = last_trade_time.strftime("%Y-%m-%d %H:%M:%S")
+
+        return last_trade_time
+
+    def get_open(self, obj):
+        if hasattr(obj, 'realtime'):
+            # Check if Asset has Realtime instance
+            open = obj.realtime.open
+        else:
+            # There is no Realtime instance...
+            open = obj.draws.values('d_open').order_by('-d_datetime')[0]['d_open']
+
+        return open
+
+    def get_high(self, obj):
+        if hasattr(obj, 'realtime'):
+            # Check if Asset has Realtime instance
+            high = obj.realtime.high
+        else:
+            # There is no Realtime instance...
+            high = obj.draws.values('d_high').order_by('-d_datetime')[0]['d_high']
+
+        return high
+
+    def get_low(self, obj):
+        if hasattr(obj, 'realtime'):
+            # Check if Asset has Realtime instance
+            low = obj.realtime.low
+        else:
+            # There is no Realtime instance...
+            low = obj.draws.values('d_low').order_by('-d_datetime')[0]['d_low']
+
+        return low
+
+    def get_price(self, obj):
+        if hasattr(obj, 'realtime'):
+            # Check if Asset has Realtime instance
+            price = obj.realtime.price
+        else:
+            # There is no Realtime instance...
+            price = obj.draws.values('d_close').order_by('-d_datetime')[0]['d_close']
+
+        return price
 
 
 class D_rawBasicSerializer(serializers.ModelSerializer):
@@ -65,14 +122,7 @@ class D_rawBasicSerializer(serializers.ModelSerializer):
 class D_rawDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.D_raw
-        fields = '__all__'
-
-
-class D_indicatorSerializer(serializers.Serializer):
-    ema_list = serializers.SerializerMethodField()
-
-    def get_ema_list(self, obj):
-        return [field.name for field in models.D_ema._meta.fields]
+        fields = ['asset_symbol', 'd_datetime', 'd_open', 'd_high', 'd_low', 'd_close', 'd_volume']
 
 
 class D_pvpcSerializer(serializers.ModelSerializer):
@@ -84,17 +134,6 @@ class D_pvpcSerializer(serializers.ModelSerializer):
         fields = ['asset_symbol', 'd_datetime',
                   'd_pv72', 'd_pv305', 'd_pv1292',
                   'd_pc72', 'd_pc305', 'd_pc1292']
-
-
-class D_emaSerializer(serializers.ModelSerializer):
-    asset_symbol = serializers.ReadOnlyField(source='d_raw.asset_symbol.asset_symbol')
-    d_datetime = serializers.ReadOnlyField(source='d_raw.d_datetime')
-
-    class Meta:
-        model = models.D_ema
-        fields = ['asset_symbol', 'd_datetime',
-                  'd_ema_close17', 'd_ema_close34', 'd_ema_close72',
-                  'd_ema_close144', 'd_ema_close305', 'd_ema_close610']
 
 
 class D_setupSerializer(serializers.ModelSerializer):

@@ -871,7 +871,7 @@ class Yahoo:
             for x in range(len(rdata['timestamp'])):
                 adj_pct = 1         # default value
 
-                datetime = utils.convert_epoch_timestamp(rdata['timestamp'][x])
+                datetime = utils.convert_epoch_to_timestamp(rdata['timestamp'][x])
                 datetime = self.get_date_isoformat(datetime)
                 open = rdata['indicators']['quote'][0]['open'][x]
                 high = rdata['indicators']['quote'][0]['high'][x]
@@ -934,7 +934,7 @@ class Yahoo:
         # Prepares data to be recognized as table's fields.
         data = {
             'asset_symbol': asset_symbol,
-            'last_trade_time': utils.convert_epoch_timestamp(rdata['price']['regularMarketTime']),
+            'last_trade_time': utils.convert_epoch_to_timestamp(rdata['price']['regularMarketTime']),
             'open': float(rdata['price']['regularMarketOpen']['raw']),
             'high': float(rdata['price']['regularMarketDayHigh']['raw']),
             'low': float(rdata['price']['regularMarketDayLow']['raw']),

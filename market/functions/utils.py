@@ -1,7 +1,9 @@
 from django.utils import encoding
 from operator import itemgetter
-import unicodedata
+from datetime import datetime
 import time
+import pytz
+import unicodedata
 import re
 
 
@@ -13,7 +15,13 @@ def remove_special_chars(string):
     return encoding.force_str(string)
 
 
-def convert_epoch_timestamp(epoch):
+def get_asset_datetime(asset_symbol, datetime):
+    asset_datetime = str(asset_symbol + '_' + re.sub("[^0-9]", "", datetime))
+    return asset_datetime
+
+
+# Time
+def convert_epoch_to_timestamp(epoch):
     while len(str(epoch)) > 10:
         # It must be in seconds. In case it is miliseconds or nanoseconds, keep dividing
         epoch = epoch / 1000
@@ -22,9 +30,13 @@ def convert_epoch_timestamp(epoch):
     return timestamp
 
 
-def get_asset_datetime(asset_symbol, datetime):
-    asset_datetime = str(asset_symbol + '_' + re.sub("[^0-9]", "", datetime))
-    return asset_datetime
+def convert_naive_to_utc(strDatetime, tz):
+    local = pytz.timezone(tz)
+    naive = datetime.strptime(strDatetime, '%Y-%m-%d %H:%M:%S')
+    local_dt = local.localize(naive, is_dst=None)
+    utc_dt = local_dt.astimezone(pytz.utc)
+
+    return utc_dt
 
 
 # data structures

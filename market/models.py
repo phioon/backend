@@ -828,6 +828,15 @@ class D_raw(models.Model):
     def __str__(self):
         return self.asset_datetime
 
+    def get_field_list(self, field_type='indicator'):
+        # Possible entries for 'field_type': ['indicator']
+        fields = []
+
+        if field_type == 'indicator':
+            fields = ['d_open', 'd_high', 'd_low', 'd_close']
+
+        return fields
+
     def updateAsset(self, symbol, lastXrows=5):
         symbolData_d.updateRaw(symbol=symbol, last_x_rows=lastXrows)
         self.updateDependencies(symbol, lastXrows=lastXrows)
@@ -880,6 +889,18 @@ class D_pvpc(models.Model):
     def __str__(self):
         return self.asset_datetime
 
+    def get_field_list(self, field_type='indicator'):
+        # Possible entries for 'field_type': ['indicator']
+        fields = []
+
+        if field_type == 'indicator':
+            ignore_fields = ['id', 'd_raw', 'asset_datetime']
+            for field in self._meta.fields:
+                if field.name not in ignore_fields:
+                    fields.append(field.name)
+
+        return fields
+
     def updateAsset(self, symbol, lastXrows=0):
         symbolData_d.updatePvpc(symbol=symbol, lastXrows=lastXrows)
 
@@ -916,6 +937,18 @@ class D_ema(models.Model):
 
     def __str__(self):
         return self.asset_datetime
+
+    def get_field_list(self, field_type='indicator'):
+        # Possible entries for 'field_type': ['indicator']
+        fields = []
+
+        if field_type == 'indicator':
+            ignore_fields = ['id', 'd_raw', 'asset_datetime']
+            for field in self._meta.fields:
+                if field.name not in ignore_fields:
+                    fields.append(field.name)
+
+        return fields
 
     def updateAsset(self, symbol, lastXrows=0):
         symbolData_d.updateEma(symbol=symbol, lastXrows=lastXrows)
@@ -958,6 +991,19 @@ class D_roc(models.Model):
 
     def __str__(self):
         return self.asset_datetime
+
+    def get_field_list(self, field_type='indicator'):
+        # Possible entries for 'field_type': ['indicator']
+        fields = []
+
+        if field_type == 'indicator':
+            ignore_fields = ['id', 'd_raw', 'asset_datetime',
+                             'd_roc_close2', 'd_roc_close3', 'd_roc_high2', 'd_roc_low2']
+            for field in self._meta.fields:
+                if field.name not in ignore_fields:
+                    fields.append(field.name)
+
+        return fields
 
     def updateAsset(self, symbol, lastXrows=0):
         symbolData_d.updateRoc(symbol=symbol, lastXrows=lastXrows)

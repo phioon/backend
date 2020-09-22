@@ -9,9 +9,9 @@ urlpatterns = [
     path('assets/', views.AssetList.as_view(), name='Assets'),
     path('indicators/', views.IndicatorList, name='Indicators avaliable'),
     path('d/raw/', views.D_RawList.as_view(), name='D_Raw data'),
-    path('d/raw/latest/', views.D_RawLatestList.as_view(), name='D_raw latest data'),
-    path('d/phibo/latest/', views.D_PhiboLatestList.as_view(), name='D_pvpc data'),
-    path('d/ema/latest/', views.D_EmaLatestList.as_view(), name='D_ema data'),
+    path('d/raw/latest/', views.D_RawLatestList, name='D_raw latest data'),
+    path('d/ema/latest/', views.D_EmaLatestList, name='D_ema latest data'),
+    path('d/phibo/latest/', views.D_PhiboLatestList, name='D_pvpc latest data'),
     path('d/setups/', views.D_SetupList.as_view(), name='D_Setup data'),
     path('d/setupSummary/', views.D_SetupSummaryList.as_view(), name='D_SetupSummary data'),
 ]
