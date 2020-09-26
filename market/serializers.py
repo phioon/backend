@@ -49,13 +49,14 @@ class AssetDetailSerializer(serializers.ModelSerializer):
     high = serializers.SerializerMethodField()
     low = serializers.SerializerMethodField()
     price = serializers.SerializerMethodField()
+    avg_volume_10d = serializers.ReadOnlyField(source='asset_volume_avg')
     pct_change = serializers.ReadOnlyField(source='realtime.pct_change')
 
     class Meta:
         model = models.Asset
         fields = ['stockExchange', 'asset_symbol',
                   'asset_label', 'asset_name', 'country_code', 'sector_id',
-                  'last_trade_time', 'open', 'high', 'low', 'price', 'pct_change']
+                  'last_trade_time', 'open', 'high', 'low', 'price', 'avg_volume_10d', 'pct_change']
 
     def get_last_trade_time(self, obj):
         if hasattr(obj, 'realtime'):
