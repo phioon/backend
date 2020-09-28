@@ -59,12 +59,13 @@ class AssetDetailSerializer(serializers.ModelSerializer):
                   'last_trade_time', 'open', 'high', 'low', 'price', 'avg_volume_10d', 'pct_change']
 
     def get_last_trade_time(self, obj):
-        if hasattr(obj, 'realtime'):
-            # Check if Asset has Realtime instance
+        d_datetime = obj.draws.values('d_datetime').distinct().order_by('-d_datetime')[0]['d_datetime']
+
+        if hasattr(obj, 'realtime') and obj.realtime.last_trade_time >= d_datetime:
+            # There is Realtime instance AND it's newer than d_datetime
             last_trade_time = obj.realtime.last_trade_time
         else:
-            # There is no Realtime instance...
-            d_datetime = obj.draws.values('d_datetime').distinct().order_by('-d_datetime')[0]['d_datetime']
+            # There is no Realtime instance OR it's older than d_datetime
             d_datetime = str(d_datetime)[0:10]
             last_trade_time = d_datetime + ' ' + str(obj.stockExchange.se_endTime)
             last_trade_time = phioon_utils.convert_naive_to_utc(strDatetime=last_trade_time,
