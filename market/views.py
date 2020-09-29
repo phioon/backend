@@ -236,12 +236,18 @@ def D_EmaLatestList(request):
     lastPeriods = int(request.query_params.get('lastPeriods'))
     instances = request.query_params.get('instances')
     instances = instances.split(',')
-    result = []
+    result = {
+        'stockExchange': stockExchange,
+        'latest_datetime': None,
+        'instances': []
+    }
 
     if lastPeriods is None or lastPeriods <= 0 or lastPeriods >= 5:
         lastPeriods = 1
 
-    dateFrom = D_raw.objects.values('d_datetime').distinct().order_by('-d_datetime')[lastPeriods - 1]['d_datetime']
+    dates = D_raw.objects.values('d_datetime').distinct().order_by('-d_datetime')
+    dateFrom = dates[lastPeriods - 1]['d_datetime']
+    result['latest_datetime'] = dates[0]['d_datetime']
 
     # Define which assets are selected
     if stockExchange:
@@ -255,11 +261,16 @@ def D_EmaLatestList(request):
         objs = list(D_ema.objects.filter(d_raw__asset_symbol=asset, d_raw__d_datetime__gte=dateFrom)
                     .order_by('-asset_datetime'))
 
+        if len(objs) != lastPeriods:
+            # There is no enough data in database
+            continue
+
         if objs:
             asset_data = {'asset_symbol': asset.asset_symbol}
 
             for x in range(len(objs)):
                 # For each time interval...
+
                 for i in instances:
                     try:
                         # Add instance data into this asset's object.
@@ -269,7 +280,7 @@ def D_EmaLatestList(request):
                         # Instance doesn't exist
                         continue
 
-            result.append(asset_data)
+            result['instances'].append(asset_data)
 
     return Response(result)
 
@@ -282,12 +293,18 @@ def D_RawLatestList(request):
     lastPeriods = int(request.query_params.get('lastPeriods'))
     instances = request.query_params.get('instances')
     instances = instances.split(',')
-    result = []
+    result = {
+        'stockExchange': stockExchange,
+        'latest_datetime': None,
+        'instances': []
+    }
 
     if lastPeriods is None or lastPeriods <= 0 or lastPeriods >= 5:
         lastPeriods = 1
 
-    dateFrom = D_raw.objects.values('d_datetime').distinct().order_by('-d_datetime')[lastPeriods - 1]['d_datetime']
+    dates = D_raw.objects.values('d_datetime').distinct().order_by('-d_datetime')
+    dateFrom = dates[lastPeriods - 1]['d_datetime']
+    result['latest_datetime'] = dates[0]['d_datetime']
 
     # Define which assets are selected
     if stockExchange:
@@ -332,7 +349,7 @@ def D_RawLatestList(request):
                     if i in obj['fields']:
                         asset_data[key] = obj['fields'][i]
 
-            result.append(asset_data)
+            result['instances'].append(asset_data)
 
     return Response(result)
 
@@ -345,12 +362,18 @@ def D_PhiboLatestList(request):
     lastPeriods = int(request.query_params.get('lastPeriods'))
     instances = request.query_params.get('instances')
     instances = instances.split(',')
-    result = []
+    result = {
+        'stockExchange': stockExchange,
+        'latest_datetime': None,
+        'instances': []
+    }
 
     if lastPeriods is None or lastPeriods <= 0 or lastPeriods >= 5:
         lastPeriods = 1
 
-    dateFrom = D_raw.objects.values('d_datetime').distinct().order_by('-d_datetime')[lastPeriods - 1]['d_datetime']
+    dates = D_raw.objects.values('d_datetime').distinct().order_by('-d_datetime')
+    dateFrom = dates[lastPeriods - 1]['d_datetime']
+    result['latest_datetime'] = dates[0]['d_datetime']
 
     # Define which assets are selected
     if stockExchange:
@@ -378,7 +401,59 @@ def D_PhiboLatestList(request):
                         # Instance doesn't exist
                         continue
 
-            result.append(asset_data)
+            result['instances'].append(asset_data)
+
+    return Response(result)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def D_RocLatestList(request):
+    stockExchange = request.query_params.get('stockExchange')
+    assets = request.query_params.get('assets')
+    lastPeriods = int(request.query_params.get('lastPeriods'))
+    instances = request.query_params.get('instances')
+    instances = instances.split(',')
+    result = {
+        'stockExchange': stockExchange,
+        'latest_datetime': None,
+        'instances': []
+    }
+
+    if lastPeriods is None or lastPeriods <= 0 or lastPeriods >= 5:
+        lastPeriods = 1
+
+    dates = D_raw.objects.values('d_datetime').distinct().order_by('-d_datetime')
+    dateFrom = dates[lastPeriods - 1]['d_datetime']
+    result['latest_datetime'] = dates[0]['d_datetime']
+
+    # Define which assets are selected
+    if stockExchange:
+        assets = Asset.objects.filter(stockExchange=stockExchange, is_considered_for_analysis=True)
+    else:
+        assets = assets.split(',')
+        assets = Asset.objects.filter(pk__in=assets, is_considered_for_analysis=True)
+
+    # Append data into result
+    for asset in assets:
+        objs = list(D_roc.objects.filter(d_raw__asset_symbol=asset, d_raw__d_datetime__gte=dateFrom)
+                    .order_by('-asset_datetime'))
+
+        if objs:
+            asset_data = {'asset_symbol': asset.asset_symbol}
+
+            for x in range(len(objs)):
+                # For each time interval...
+                for i in instances:
+                    try:
+                        # Add instance data into this asset's object.
+                        key = str(i) + '__p' + str(x)
+                        asset_data[key] = getattr(objs[x], i)
+                    except AttributeError:
+                        # Instance doesn't exist
+                        continue
+
+            result['instances'].append(asset_data)
 
     return Response(result)
 

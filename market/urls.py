@@ -12,6 +12,7 @@ urlpatterns = [
     path('d/raw/latest/', views.D_RawLatestList, name='D_raw latest data'),
     path('d/ema/latest/', views.D_EmaLatestList, name='D_ema latest data'),
     path('d/phibo/latest/', views.D_PhiboLatestList, name='D_pvpc latest data'),
+    path('d/roc/latest/', views.D_RocLatestList, name='D_roc latest data'),
     path('d/setups/', views.D_SetupList.as_view(), name='D_Setup data'),
     path('d/setupSummary/', views.D_SetupSummaryList.as_view(), name='D_SetupSummary data'),
 ]
