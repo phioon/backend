@@ -2,6 +2,7 @@ from django.db.models import Q, Max
 from django.http import HttpResponse
 from django.core import serializers as django_serializers
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.views import APIView
 from rest_framework import generics, permissions
 from rest_framework import status
 from rest_framework.response import Response
@@ -51,25 +52,16 @@ class StockExchangeList(generics.ListCreateAPIView):
 
 
 # Integration between Backend and Frontend
-class AssetList(generics.ListAPIView):
+class AssetList(APIView):
     permission_classes = [permissions.IsAuthenticated]
-    serializer_class = serializers.AssetDetailSerializer
 
-    # def get_serializer_class(self):
-    #     detailed = self.request.data['detailed']
-    #
-    #     if str(detailed).lower() == 'true':
-    #         return serializers.AssetDetailSerializer
-    #     else:
-    #         return serializers.AssetBasicSerializer
-
-    def get_queryset(self):
+    def post(self, request, *args, **kwargs):
         stockExchange = assets = None
 
-        if 'assets' in self.request.data:
-            assets = self.request.data['assets']
-        if 'stockExchange' in self.request.data:
-            stockExchange = self.request.data['stockExchange']
+        if 'assets' in request.data:
+            assets = request.data['assets']
+        if 'stockExchange' in request.data:
+            stockExchange = request.data['stockExchange']
 
         if assets:
             assets = assets.split(',')
@@ -78,9 +70,12 @@ class AssetList(generics.ListAPIView):
             a = Asset()
             a.frontend_access(assets)
 
-            return Asset.objects.filter(asset_symbol__in=assets)
+            assets = Asset.objects.filter(asset_symbol__in=assets)
         else:
-            return Asset.objects.filter(stockExchange__se_short__exact=stockExchange)
+            assets = Asset.objects.filter(stockExchange__se_short__exact=stockExchange)
+
+        serializer = serializers.AssetDetailSerializer(assets, many=True)
+        return Response(serializer.data)
 
 
 @api_view(['GET'])
@@ -270,14 +265,16 @@ def D_EmaLatestList(request):
 
             for x in range(len(objs)):
                 # For each time interval...
-
                 for i in instances:
-                    try:
-                        # Add instance data into this asset's object.
-                        key = str(i) + '__p' + str(x)
-                        asset_data[key] = getattr(objs[x], i)
-                    except AttributeError:
-                        # Instance doesn't exist
+                    if hasattr(objs[x], i):
+                        # Instance exists
+                        i_value = getattr(objs[x], i)
+                        if i_value:
+                            # Instance value is valid (is not null nor 0)
+                            key = str(i) + '__p' + str(x)
+                            asset_data[key] = i_value
+                    else:
+                        # If one instance doesn't exist, ignore the entire asset.
                         continue
 
             result['instances'].append(asset_data)
@@ -287,7 +284,7 @@ def D_EmaLatestList(request):
 
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
-def D_RawLatestList(request):
+def D_QuoteLatestList(request):
     stockExchange = request.query_params.get('stockExchange')
     assets = request.query_params.get('assets')
     lastPeriods = int(request.query_params.get('lastPeriods'))
@@ -319,7 +316,12 @@ def D_RawLatestList(request):
                         .order_by('-asset_datetime'))
         raw_objs = json.loads(django_serializers.serialize('json', raw_objs))
 
+        if len(raw_objs) != lastPeriods:
+            # There is no enough data in database
+            continue
+
         if raw_objs:
+            # 'raw_objs' is valid and the amount of raw objects is the same as 'lastPeriods'
             if hasattr(asset, 'realtime'):
                 # Asset has Realtime instance
                 last_trade_time = asset.realtime.last_trade_time
@@ -393,12 +395,15 @@ def D_PhiboLatestList(request):
             for x in range(len(objs)):
                 # For each time interval...
                 for i in instances:
-                    try:
-                        # Add instance data into this asset's object.
-                        key = str(i) + '__p' + str(x)
-                        asset_data[key] = getattr(objs[x], i)
-                    except AttributeError:
-                        # Instance doesn't exist
+                    if hasattr(objs[x], i):
+                        # Instance exists
+                        i_value = getattr(objs[x], i)
+                        if i_value:
+                            # Instance value is valid (is not null nor 0)
+                            key = str(i) + '__p' + str(x)
+                            asset_data[key] = i_value
+                    else:
+                        # If one instance doesn't exist, ignore the entire asset.
                         continue
 
             result['instances'].append(asset_data)
@@ -445,12 +450,15 @@ def D_RocLatestList(request):
             for x in range(len(objs)):
                 # For each time interval...
                 for i in instances:
-                    try:
-                        # Add instance data into this asset's object.
-                        key = str(i) + '__p' + str(x)
-                        asset_data[key] = getattr(objs[x], i)
-                    except AttributeError:
-                        # Instance doesn't exist
+                    if hasattr(objs[x], i):
+                        # Instance exists
+                        i_value = getattr(objs[x], i)
+                        if i_value:
+                            # Instance value is valid (is not null nor 0)
+                            key = str(i) + '__p' + str(x)
+                            asset_data[key] = i_value
+                    else:
+                        # If one instance doesn't exist, ignore the entire asset.
                         continue
 
             result['instances'].append(asset_data)

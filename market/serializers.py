@@ -75,41 +75,49 @@ class AssetDetailSerializer(serializers.ModelSerializer):
         return last_trade_time
 
     def get_open(self, obj):
-        if hasattr(obj, 'realtime'):
-            # Check if Asset has Realtime instance
+        d_datetime = obj.draws.values('d_datetime').distinct().order_by('-d_datetime')[0]['d_datetime']
+
+        if hasattr(obj, 'realtime') and obj.realtime.last_trade_time >= d_datetime:
+            # There is Realtime instance AND it's newer than d_datetime
             open = obj.realtime.open
         else:
-            # There is no Realtime instance...
+            # There is no Realtime instance OR it's older than d_datetime
             open = obj.draws.values('d_open').order_by('-d_datetime')[0]['d_open']
 
         return open
 
     def get_high(self, obj):
-        if hasattr(obj, 'realtime'):
-            # Check if Asset has Realtime instance
+        d_datetime = obj.draws.values('d_datetime').distinct().order_by('-d_datetime')[0]['d_datetime']
+
+        if hasattr(obj, 'realtime') and obj.realtime.last_trade_time >= d_datetime:
+            # There is Realtime instance AND it's newer than d_datetime
             high = obj.realtime.high
         else:
-            # There is no Realtime instance...
+            # There is no Realtime instance OR it's older than d_datetime
             high = obj.draws.values('d_high').order_by('-d_datetime')[0]['d_high']
 
         return high
 
     def get_low(self, obj):
-        if hasattr(obj, 'realtime'):
-            # Check if Asset has Realtime instance
+        d_datetime = obj.draws.values('d_datetime').distinct().order_by('-d_datetime')[0]['d_datetime']
+
+        if hasattr(obj, 'realtime') and obj.realtime.last_trade_time >= d_datetime:
+            # There is Realtime instance AND it's newer than d_datetime
             low = obj.realtime.low
         else:
-            # There is no Realtime instance...
+            # There is no Realtime instance OR it's older than d_datetime
             low = obj.draws.values('d_low').order_by('-d_datetime')[0]['d_low']
 
         return low
 
     def get_price(self, obj):
-        if hasattr(obj, 'realtime'):
-            # Check if Asset has Realtime instance
+        d_datetime = obj.draws.values('d_datetime').distinct().order_by('-d_datetime')[0]['d_datetime']
+
+        if hasattr(obj, 'realtime') and obj.realtime.last_trade_time >= d_datetime:
+            # There is Realtime instance AND it's newer than d_datetime
             price = obj.realtime.price
         else:
-            # There is no Realtime instance...
+            # There is no Realtime instance OR it's older than d_datetime
             price = obj.draws.values('d_close').order_by('-d_datetime')[0]['d_close']
 
         return price
