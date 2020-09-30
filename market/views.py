@@ -525,10 +525,6 @@ def update_stock_exchange_list(request, apiKey=None):
 @permission_classes([permissions.AllowAny])
 def run_offline_raw_data_se_short(request, se_short, apiKey=None):
     if apiKey == settings.API_KEY:
-        client = tasks_v2.CloudTasksClient()
-        parent = client.queue_path(settings.GAE_PROJECT,
-                                   settings.GAE_QUEUES['market-eod']['location'],
-                                   settings.GAE_QUEUES['market-eod']['name'])
         sync_list = []
         stockExchange = StockExchange.objects.get(pk=se_short)
         assets = Asset.objects.filter(stockExchange=stockExchange)
@@ -538,6 +534,11 @@ def run_offline_raw_data_se_short(request, se_short, apiKey=None):
                 sync_list.append(asset)
 
         if settings.ACCESS_PRD_DB:
+            client = tasks_v2.CloudTasksClient()
+            parent = client.queue_path(settings.GAE_PROJECT,
+                                       settings.GAE_QUEUES['market-eod']['location'],
+                                       settings.GAE_QUEUES['market-eod']['name'])
+
             for asset in sync_list:
                 url = settings.MARKET_API_BASE + 'task/offline/runRaw/D/asset/'
                 url += asset.asset_symbol + '/'
@@ -576,10 +577,6 @@ def run_offline_raw_data_asset(request, symbol, apiKey=None):
 @permission_classes([permissions.AllowAny])
 def run_offline_setup_se_short(request, se_short, apiKey=None):
     if apiKey == settings.API_KEY:
-        client = tasks_v2.CloudTasksClient()
-        parent = client.queue_path(settings.GAE_PROJECT,
-                                   settings.GAE_QUEUES['market-eod']['location'],
-                                   settings.GAE_QUEUES['market-eod']['name'])
         sync_list = []
         stockExchange = StockExchange.objects.get(pk=se_short)
         assets = Asset.objects.filter(stockExchange=stockExchange)
@@ -589,6 +586,11 @@ def run_offline_setup_se_short(request, se_short, apiKey=None):
                 sync_list.append(asset)
 
         if settings.ACCESS_PRD_DB:
+            client = tasks_v2.CloudTasksClient()
+            parent = client.queue_path(settings.GAE_PROJECT,
+                                       settings.GAE_QUEUES['market-eod']['location'],
+                                       settings.GAE_QUEUES['market-eod']['name'])
+
             for asset in sync_list:
                 url = settings.MARKET_API_BASE + 'task/offline/runSetup/D/asset/'
                 url += asset.asset_symbol + '/'
@@ -659,10 +661,6 @@ def update_asset_profile(request, symbol, apiKey=None):
 def run_raw_data_se_short(request, se_short, last_x_rows=5, apiKey=None):
     if apiKey == settings.API_KEY:
         stockExchange = StockExchange.objects.get(pk=se_short)
-        client = tasks_v2.CloudTasksClient()
-        parent = client.queue_path(settings.GAE_PROJECT,
-                                   settings.GAE_QUEUES['market-eod']['location'],
-                                   settings.GAE_QUEUES['market-eod']['name'])
 
         se_tzinfo = pytz.timezone(stockExchange.se_timezone)
         today = datetime.today().astimezone(se_tzinfo)
@@ -718,6 +716,10 @@ def run_raw_data_se_short(request, se_short, last_x_rows=5, apiKey=None):
                 last_periods = 0
 
         if settings.ACCESS_PRD_DB:
+            client = tasks_v2.CloudTasksClient()
+            parent = client.queue_path(settings.GAE_PROJECT,
+                                       settings.GAE_QUEUES['market-eod']['location'],
+                                       settings.GAE_QUEUES['market-eod']['name'])
             for asset in sync_list:
                 url = settings.MARKET_API_BASE + 'task/runRaw/D/asset/'
                 url += asset.asset_symbol + '/'
@@ -760,12 +762,12 @@ def update_realtime_se_short(request, se_short, apiKey=None):
             stockExchange=se_short
         )
 
-        client = tasks_v2.CloudTasksClient()
-        parent = client.queue_path(settings.GAE_PROJECT,
-                                   settings.GAE_QUEUES['market-realtime']['location'],
-                                   settings.GAE_QUEUES['market-realtime']['name'])
-
         if settings.ACCESS_PRD_DB:
+            client = tasks_v2.CloudTasksClient()
+            parent = client.queue_path(settings.GAE_PROJECT,
+                                       settings.GAE_QUEUES['market-realtime']['location'],
+                                       settings.GAE_QUEUES['market-realtime']['name'])
+
             for asset in assets:
                 url = settings.MARKET_API_BASE + 'task/updateRealtime/asset/'
                 url += asset.asset_symbol + '/'
