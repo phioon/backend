@@ -253,6 +253,7 @@ def D_EmaLatestList(request):
 
     # Append data into result
     for asset in assets:
+        is_validated = True
         objs = list(D_ema.objects.filter(d_raw__asset_symbol=asset, d_raw__d_datetime__gte=dateFrom)
                     .order_by('-asset_datetime'))
 
@@ -270,14 +271,17 @@ def D_EmaLatestList(request):
                         # Instance exists
                         i_value = getattr(objs[x], i)
                         if i_value:
-                            # Instance value is valid (is not null nor 0)
+                            # Instance value is valid
                             key = str(i) + '__p' + str(x)
                             asset_data[key] = i_value
-                    else:
-                        # If one instance doesn't exist, ignore the entire asset.
-                        continue
+                        else:
+                            # Instance value is not valid (is not null nor 0)
+                            # Asset should be ignored
+                            is_validated = False
+                            break
 
-            result['instances'].append(asset_data)
+            if is_validated:
+                result['instances'].append(asset_data)
 
     return Response(result)
 
@@ -386,8 +390,13 @@ def D_PhiboLatestList(request):
 
     # Append data into result
     for asset in assets:
+        is_validated = True
         objs = list(D_pvpc.objects.filter(d_raw__asset_symbol=asset, d_raw__d_datetime__gte=dateFrom)
                     .order_by('-asset_datetime'))
+
+        if len(objs) != lastPeriods:
+            # There is no enough data in database
+            continue
 
         if objs:
             asset_data = {'asset_symbol': asset.asset_symbol}
@@ -398,15 +407,19 @@ def D_PhiboLatestList(request):
                     if hasattr(objs[x], i):
                         # Instance exists
                         i_value = getattr(objs[x], i)
+                        print('%s || %s || %s' % (asset.asset_symbol, i, i_value))
                         if i_value:
-                            # Instance value is valid (is not null nor 0)
+                            # Instance value is valid
                             key = str(i) + '__p' + str(x)
                             asset_data[key] = i_value
-                    else:
-                        # If one instance doesn't exist, ignore the entire asset.
-                        continue
+                        else:
+                            # Instance value is not valid (is not null nor 0)
+                            # Asset should be ignored
+                            is_validated = False
+                            break
 
-            result['instances'].append(asset_data)
+            if is_validated:
+                result['instances'].append(asset_data)
 
     return Response(result)
 
@@ -444,6 +457,10 @@ def D_RocLatestList(request):
         objs = list(D_roc.objects.filter(d_raw__asset_symbol=asset, d_raw__d_datetime__gte=dateFrom)
                     .order_by('-asset_datetime'))
 
+        if len(objs) != lastPeriods:
+            # There is no enough data in database
+            continue
+
         if objs:
             asset_data = {'asset_symbol': asset.asset_symbol}
 
@@ -454,14 +471,17 @@ def D_RocLatestList(request):
                         # Instance exists
                         i_value = getattr(objs[x], i)
                         if i_value:
-                            # Instance value is valid (is not null nor 0)
+                            # Instance value is valid
                             key = str(i) + '__p' + str(x)
                             asset_data[key] = i_value
-                    else:
-                        # If one instance doesn't exist, ignore the entire asset.
-                        continue
+                        else:
+                            # Instance value is not valid (is not null or 0)
+                            # Asset should be ignored
+                            is_validated = False
+                            break
 
-            result['instances'].append(asset_data)
+            if is_validated:
+                result['instances'].append(asset_data)
 
     return Response(result)
 
