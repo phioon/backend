@@ -232,9 +232,8 @@ def D_EmaLatestList(request):
     instances = request.query_params.get('instances')
     instances = instances.split(',')
     result = {
-        'stockExchange': stockExchange,
         'latest_datetime': None,
-        'instances': []
+        'data': []
     }
 
     if lastPeriods is None or lastPeriods <= 0 or lastPeriods >= 5:
@@ -253,7 +252,6 @@ def D_EmaLatestList(request):
 
     # Append data into result
     for asset in assets:
-        is_validated = True
         objs = list(D_ema.objects.filter(d_raw__asset_symbol=asset, d_raw__d_datetime__gte=dateFrom)
                     .order_by('-asset_datetime'))
 
@@ -271,17 +269,11 @@ def D_EmaLatestList(request):
                         # Instance exists
                         i_value = getattr(objs[x], i)
                         if i_value:
-                            # Instance value is valid
+                            # Instance value is not null nor 0
                             key = str(i) + '__p' + str(x)
                             asset_data[key] = i_value
-                        else:
-                            # Instance value is not valid (is not null nor 0)
-                            # Asset should be ignored
-                            is_validated = False
-                            break
 
-            if is_validated:
-                result['instances'].append(asset_data)
+            result['data'].append(asset_data)
 
     return Response(result)
 
@@ -295,9 +287,8 @@ def D_QuoteLatestList(request):
     instances = request.query_params.get('instances')
     instances = instances.split(',')
     result = {
-        'stockExchange': stockExchange,
         'latest_datetime': None,
-        'instances': []
+        'data': []
     }
 
     if lastPeriods is None or lastPeriods <= 0 or lastPeriods >= 5:
@@ -355,7 +346,7 @@ def D_QuoteLatestList(request):
                     if i in obj['fields']:
                         asset_data[key] = obj['fields'][i]
 
-            result['instances'].append(asset_data)
+            result['data'].append(asset_data)
 
     return Response(result)
 
@@ -369,9 +360,8 @@ def D_PhiboLatestList(request):
     instances = request.query_params.get('instances')
     instances = instances.split(',')
     result = {
-        'stockExchange': stockExchange,
         'latest_datetime': None,
-        'instances': []
+        'data': []
     }
 
     if lastPeriods is None or lastPeriods <= 0 or lastPeriods >= 5:
@@ -390,7 +380,6 @@ def D_PhiboLatestList(request):
 
     # Append data into result
     for asset in assets:
-        is_validated = True
         objs = list(D_pvpc.objects.filter(d_raw__asset_symbol=asset, d_raw__d_datetime__gte=dateFrom)
                     .order_by('-asset_datetime'))
 
@@ -409,17 +398,11 @@ def D_PhiboLatestList(request):
                         i_value = getattr(objs[x], i)
                         print('%s || %s || %s' % (asset.asset_symbol, i, i_value))
                         if i_value:
-                            # Instance value is valid
+                            # Instance value is not null nor 0
                             key = str(i) + '__p' + str(x)
                             asset_data[key] = i_value
-                        else:
-                            # Instance value is not valid (is not null nor 0)
-                            # Asset should be ignored
-                            is_validated = False
-                            break
 
-            if is_validated:
-                result['instances'].append(asset_data)
+            result['data'].append(asset_data)
 
     return Response(result)
 
@@ -433,9 +416,8 @@ def D_RocLatestList(request):
     instances = request.query_params.get('instances')
     instances = instances.split(',')
     result = {
-        'stockExchange': stockExchange,
         'latest_datetime': None,
-        'instances': []
+        'data': []
     }
 
     if lastPeriods is None or lastPeriods <= 0 or lastPeriods >= 5:
@@ -471,17 +453,11 @@ def D_RocLatestList(request):
                         # Instance exists
                         i_value = getattr(objs[x], i)
                         if i_value:
-                            # Instance value is valid
+                            # Instance value is not null or 0
                             key = str(i) + '__p' + str(x)
                             asset_data[key] = i_value
-                        else:
-                            # Instance value is not valid (is not null or 0)
-                            # Asset should be ignored
-                            is_validated = False
-                            break
 
-            if is_validated:
-                result['instances'].append(asset_data)
+            result['data'].append(asset_data)
 
     return Response(result)
 
