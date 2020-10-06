@@ -26,7 +26,7 @@ class Setup:
 
     # Phibo
     @staticmethod
-    def get_tcId_phibo(phibo_test_3p, phibo_alignment_3p, low_ema_btl_3p, high_ema_btl_3p, pivot, roc_ema34):
+    def get_tcId_phibo(phibo_test_3p, phibo_alignment_3p, low_ema_btl_3p, high_ema_btl_3p, pivot, roc_ema8):
         low_ema_btl_yesterday = low_ema_btl_3p[1]
         high_ema_btl_yesterday = high_ema_btl_3p[1]
         phibo_test_yesterday = phibo_test_3p[1]
@@ -38,16 +38,16 @@ class Setup:
                 pivot == 1):
             return 'phibo_1292_up'
         elif (phibo_alignment_yesterday in [6, 7] and
-                phibo_test_yesterday == 305 and
-                low_ema_btl_yesterday in [6, 7] and
-                roc_ema34 > 0 and
-                pivot == 1):
+              phibo_test_yesterday == 305 and
+              low_ema_btl_yesterday in [6, 7] and
+              roc_ema8 > 0 and
+              pivot == 1):
             return 'phibo_305_up'
         elif (phibo_alignment_yesterday in [6, 7] and
-                phibo_test_yesterday == 72 and
-                low_ema_btl_yesterday in [6, 7] and
-                roc_ema34 > 0 and
-                pivot == 1):
+              phibo_test_yesterday == 72 and
+              low_ema_btl_yesterday in [6, 7] and
+              roc_ema8 > 0 and
+              pivot == 1):
             return 'phibo_72_up'
 
         elif (phibo_alignment_yesterday in [0, 1] and
@@ -61,10 +61,10 @@ class Setup:
                 pivot == -1):
             return 'phibo_305_down'
         elif (phibo_alignment_yesterday in [0, 1] and
-                phibo_test_yesterday == -72 and
-                high_ema_btl_yesterday in [0, 1] and
-                roc_ema34 < 0 and
-                pivot == -1):
+              phibo_test_yesterday == -72 and
+              high_ema_btl_yesterday in [0, 1] and
+              roc_ema8 < 0 and
+              pivot == -1):
             return 'phibo_72_down'
 
     def create_phibo_setup(self, datetimes, highList, lowList, pvList, pcList):
@@ -95,7 +95,7 @@ class Setup:
 
     # EMA
     @staticmethod
-    def get_tcId_ema(ema_test_3p, low_ema_btl_3p, high_ema_btl_3p, pivot, roc_ema34):
+    def get_tcId_ema(ema_test_3p, low_ema_btl_3p, high_ema_btl_3p, pivot, roc_ema8):
         low_ema_btl_yesterday = low_ema_btl_3p[1]
         high_ema_btl_yesterday = high_ema_btl_3p[1]
         ema_test_yesterday = ema_test_3p[1]
@@ -106,7 +106,7 @@ class Setup:
             return 'ema_610_up'
         elif (ema_test_yesterday == 144 and
               high_ema_btl_yesterday == 6 and
-              roc_ema34 > 0 and
+              roc_ema8 > 0 and
               pivot == 1):
             return 'ema_144_up'
         if (ema_test_yesterday == -610 and
@@ -115,7 +115,7 @@ class Setup:
             return 'ema_610_down'
         elif (ema_test_yesterday == -144 and
               low_ema_btl_yesterday == 1 and
-              roc_ema34 < 0 and
+              roc_ema8 < 0 and
               pivot == -1):
             return 'ema_144_up'
 

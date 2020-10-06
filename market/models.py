@@ -271,18 +271,6 @@ class TechnicalCondition(models.Model):
                 return 0
 
     @staticmethod
-    def emaroc_btl(roc_emaClose72, roc_emaClose305):
-        roc_emaClose72_max = 0.214
-        roc_emaClose72_min = -0.214
-
-        # Firstly, check if there is enough data.
-        if roc_emaClose305 is not None:
-            if roc_emaClose72 > roc_emaClose72_min and roc_emaClose305 > 0:
-                return 7
-            elif roc_emaClose72 < roc_emaClose72_max and roc_emaClose305 < 0:
-                return 0
-
-    @staticmethod
     def ema_range(varEma1734, varEma3472, varEma72144, varEma144305, varEma305610):
         range = None
 
@@ -926,10 +914,14 @@ class D_ema(models.Model):
     d_raw = models.OneToOneField(D_raw, db_index=True, on_delete=models.CASCADE)
     asset_datetime = models.CharField(max_length=64, unique=True, db_index=True)  # (PETR4.SA_20191231000000)
 
+    d_ema_close8 = models.FloatField(null=True)
+    d_ema_close9 = models.FloatField(null=True)
     d_ema_close17 = models.FloatField(null=True)
     d_ema_close34 = models.FloatField(null=True)
+    d_ema_close50 = models.FloatField(null=True)
     d_ema_close72 = models.FloatField(null=True)
     d_ema_close144 = models.FloatField(null=True)
+    d_ema_close200 = models.FloatField(null=True)
     d_ema_close305 = models.FloatField(null=True)
     d_ema_close610 = models.FloatField(null=True)
     d_ema_close1292 = models.FloatField(null=True)
@@ -962,10 +954,14 @@ class D_ema(models.Model):
                 asset_datetime=objs[x].asset_datetime,
                 defaults={
                     'd_raw': objs[x].d_raw,
+                    'd_ema_close8': objs[x].d_ema_close8,
+                    'd_ema_close9': objs[x].d_ema_close9,
                     'd_ema_close17': objs[x].d_ema_close17,
                     'd_ema_close34': objs[x].d_ema_close34,
+                    'd_ema_close50': objs[x].d_ema_close50,
                     'd_ema_close72': objs[x].d_ema_close72,
                     'd_ema_close144': objs[x].d_ema_close144,
+                    'd_ema_close200': objs[x].d_ema_close200,
                     'd_ema_close305': objs[x].d_ema_close305,
                     'd_ema_close610': objs[x].d_ema_close610,
                     'd_ema_close1292': objs[x].d_ema_close1292,
@@ -976,14 +972,14 @@ class D_roc(models.Model):
     d_raw = models.OneToOneField(D_raw, verbose_name='Asset and Datetime', on_delete=models.CASCADE)
     asset_datetime = models.CharField(max_length=64, unique=True, db_index=True)  # (PETR4.SA_20191231000000)
 
-    d_roc_close2 = models.FloatField(null=True)
-    d_roc_close3 = models.FloatField(null=True)
-    d_roc_high2 = models.FloatField(null=True)
-    d_roc_low2 = models.FloatField(null=True)
+    d_roc_emaclose8 = models.FloatField(null=True)
+    d_roc_emaclose9 = models.FloatField(null=True)
     d_roc_emaclose17 = models.FloatField(null=True)
     d_roc_emaclose34 = models.FloatField(null=True)
+    d_roc_emaclose50 = models.FloatField(null=True)
     d_roc_emaclose72 = models.FloatField(null=True)
     d_roc_emaclose144 = models.FloatField(null=True)
+    d_roc_emaclose200 = models.FloatField(null=True)
     d_roc_emaclose305 = models.FloatField(null=True)
     d_roc_emaclose610 = models.FloatField(null=True)
     d_roc_emaclose1292 = models.FloatField(null=True)
@@ -997,8 +993,7 @@ class D_roc(models.Model):
         fields = []
 
         if field_type == 'indicator':
-            ignore_fields = ['id', 'd_raw', 'asset_datetime',
-                             'd_roc_close2', 'd_roc_close3', 'd_roc_high2', 'd_roc_low2']
+            ignore_fields = ['id', 'd_raw', 'asset_datetime']
             for field in self._meta.fields:
                 if field.name not in ignore_fields:
                     fields.append(field.name)
@@ -1017,14 +1012,14 @@ class D_roc(models.Model):
                 asset_datetime=objs[x].asset_datetime,
                 defaults={
                     'd_raw': objs[x].d_raw,
-                    'd_roc_close2': objs[x].d_roc_close2,
-                    'd_roc_close3': objs[x].d_roc_close3,
-                    'd_roc_high2': objs[x].d_roc_high2,
-                    'd_roc_low2': objs[x].d_roc_low2,
+                    'd_roc_emaclose8': objs[x].d_roc_emaclose8,
+                    'd_roc_emaclose9': objs[x].d_roc_emaclose9,
                     'd_roc_emaclose17': objs[x].d_roc_emaclose17,
                     'd_roc_emaclose34': objs[x].d_roc_emaclose34,
+                    'd_roc_emaclose50': objs[x].d_roc_emaclose50,
                     'd_roc_emaclose72': objs[x].d_roc_emaclose72,
                     'd_roc_emaclose144': objs[x].d_roc_emaclose144,
+                    'd_roc_emaclose200': objs[x].d_roc_emaclose200,
                     'd_roc_emaclose305': objs[x].d_roc_emaclose305,
                     'd_roc_emaclose610': objs[x].d_roc_emaclose610,
                     'd_roc_emaclose1292': objs[x].d_roc_emaclose1292,
@@ -1070,7 +1065,6 @@ class D_technicalCondition(models.Model):
     pivot = models.IntegerField(null=True)
     low_ema_btl = models.IntegerField(null=True)
     high_ema_btl = models.IntegerField(null=True)
-    emaroc_btl = models.IntegerField(null=True)
     ema_range = models.IntegerField(null=True)
     ema_trend = models.IntegerField(null=True)
     ema_test = models.IntegerField(null=True)
@@ -1096,7 +1090,6 @@ class D_technicalCondition(models.Model):
                                                               'pivot': objs[x].pivot,
                                                               'low_ema_btl': objs[x].low_ema_btl,
                                                               'high_ema_btl': objs[x].high_ema_btl,
-                                                              'emaroc_btl': objs[x].emaroc_btl,
                                                               'ema_range': objs[x].ema_range,
                                                               'ema_trend': objs[x].ema_trend,
                                                               'ema_test': objs[x].ema_test,

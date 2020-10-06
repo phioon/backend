@@ -114,10 +114,14 @@ def updateEma(symbol, lastXrows):
                      .order_by('d_datetime'))
 
     df = pd.DataFrame(closeList)[0]
+    ema_close8 = ema.getEmaList(df, 8)
+    ema_close9 = ema.getEmaList(df, 9)
     ema_close17 = ema.getEmaList(df, 17)
     ema_close34 = ema.getEmaList(df, 34)
+    ema_close50 = ema.getEmaList(df, 50)
     ema_close72 = ema.getEmaList(df, 72)
     ema_close144 = ema.getEmaList(df, 144)
+    ema_close200 = ema.getEmaList(df, 200)
     ema_close305 = ema.getEmaList(df, 305)
     ema_close610 = ema.getEmaList(df, 610)
     ema_close1292 = ema.getEmaList(df, 1292)
@@ -125,10 +129,14 @@ def updateEma(symbol, lastXrows):
 
     for x in range(len(adtList)):
         adt = adtList[x]
+        ema8 = ema_close8[x]
+        ema9 = ema_close9[x]
         ema17 = ema_close17[x]
         ema34 = ema_close34[x]
+        ema50 = ema_close50[x]
         ema72 = ema_close72[x]
         ema144 = ema_close144[x]
+        ema200 = ema_close200[x]
         ema305 = ema_close305[x]
         ema610 = ema_close610[x]
         ema1292 = ema_close1292[x]
@@ -136,10 +144,14 @@ def updateEma(symbol, lastXrows):
 
         obj = D_ema(d_raw=d_raw.get(asset_datetime=adt),
                     asset_datetime=adt,
+                    d_ema_close8=ema8,
+                    d_ema_close9=ema9,
                     d_ema_close17=ema17,
                     d_ema_close34=ema34,
+                    d_ema_close50=ema50,
                     d_ema_close72=ema72,
                     d_ema_close144=ema144,
+                    d_ema_close200=ema200,
                     d_ema_close305=ema305,
                     d_ema_close610=ema610,
                     d_ema_close1292=ema1292,
@@ -179,8 +191,9 @@ def updateRoc(symbol, lastXrows):
                      .order_by('d_datetime'))
     closeEmaList = list(D_ema.objects.filter(d_raw_id__asset_symbol__exact=symbol)
                         .exclude(d_raw_id__d_close=0)
-                        .values_list('d_ema_close17', 'd_ema_close34', 'd_ema_close72', 'd_ema_close144',
-                                     'd_ema_close305', 'd_ema_close610', 'd_ema_close1292', 'd_ema_close2584')
+                        .values_list('d_ema_close8', 'd_ema_close9', 'd_ema_close17', 'd_ema_close34', 'd_ema_close50',
+                                     'd_ema_close72', 'd_ema_close144', 'd_ema_close200', 'd_ema_close305',
+                                     'd_ema_close610', 'd_ema_close1292', 'd_ema_close2584')
                         .order_by('asset_datetime'))
 
     if len(adtList) != len(closeEmaList):
@@ -190,36 +203,30 @@ def updateRoc(symbol, lastXrows):
                             % (symbol, len(adtList), len(closeEmaList)))
         return
 
-    df = pd.DataFrame(closeList)[0]
-    roc_close2 = roc.getRocList(df, 1)  # Related to # periods behind
-    roc_close3 = roc.getRocList(df, 2)  # Related to # periods behind
-
-    df = pd.DataFrame(highList)[0]
-    roc_high2 = roc.getRocList(df, 1)  # Related to # periods behind
-
-    df = pd.DataFrame(lowList)[0]
-    roc_low2 = roc.getRocList(df, 1)  # Related to # periods behind
-
     df = pd.DataFrame(closeEmaList)[:]
-    roc_emaClose17 = roc.getRocList(df[0], 4 - 1)  # Related to # periods behind
-    roc_emaClose34 = roc.getRocList(df[1], 8 - 1)  # Related to # periods behind
-    roc_emaClose72 = roc.getRocList(df[2], 17 - 1)  # Related to # periods behind
-    roc_emaClose144 = roc.getRocList(df[3], 34 - 1)  # Related to # periods behind
-    roc_emaClose305 = roc.getRocList(df[4], 72 - 1)  # Related to # periods behind
-    roc_emaClose610 = roc.getRocList(df[5], 144 - 1)  # Related to # periods behind
-    roc_emaClose1292 = roc.getRocList(df[6], 305 - 1)  # Related to # periods behind
-    roc_emaClose2584 = roc.getRocList(df[7], 610 - 1)  # Related to # periods behind
+    roc_emaClose8 = roc.getRocList(df[0], 8 - 1)  # Related to # periods behind
+    roc_emaClose9 = roc.getRocList(df[1], 9 - 1)  # Related to # periods behind
+    roc_emaClose17 = roc.getRocList(df[2], 17 - 1)  # Related to # periods behind
+    roc_emaClose34 = roc.getRocList(df[3], 34 - 1)  # Related to # periods behind
+    roc_emaClose50 = roc.getRocList(df[4], 50 - 1)  # Related to # periods behind
+    roc_emaClose72 = roc.getRocList(df[5], 72 - 1)  # Related to # periods behind
+    roc_emaClose144 = roc.getRocList(df[6], 144 - 1)  # Related to # periods behind
+    roc_emaClose200 = roc.getRocList(df[7], 200 - 1)  # Related to # periods behind
+    roc_emaClose305 = roc.getRocList(df[8], 305 - 1)  # Related to # periods behind
+    roc_emaClose610 = roc.getRocList(df[9], 610 - 1)  # Related to # periods behind
+    roc_emaClose1292 = roc.getRocList(df[10], 1292 - 1)  # Related to # periods behind
+    roc_emaClose2584 = roc.getRocList(df[11], 2584 - 1)  # Related to # periods behind
 
     for x in range(len(adtList)):
         adt = adtList[x]
-        rocClose2 = roc_close2[x]
-        rocClose3 = roc_close3[x]
-        rocHigh2 = roc_high2[x]
-        rocLow2 = roc_low2[x]
+        rocEma8 = roc_emaClose8[x]
+        rocEma9 = roc_emaClose9[x]
         rocEma17 = roc_emaClose17[x]
         rocEma34 = roc_emaClose34[x]
+        rocEma50 = roc_emaClose50[x]
         rocEma72 = roc_emaClose72[x]
         rocEma144 = roc_emaClose144[x]
+        rocEma200 = roc_emaClose200[x]
         rocEma305 = roc_emaClose305[x]
         rocEma610 = roc_emaClose610[x]
         rocEma1292 = roc_emaClose1292[x]
@@ -227,14 +234,14 @@ def updateRoc(symbol, lastXrows):
 
         obj = D_roc(d_raw=d_raw.get(asset_datetime=adt),
                     asset_datetime=adt,
-                    d_roc_close2=rocClose2,
-                    d_roc_close3=rocClose3,
-                    d_roc_high2=rocHigh2,
-                    d_roc_low2=rocLow2,
+                    d_roc_emaclose8=rocEma8,
+                    d_roc_emaclose9=rocEma9,
                     d_roc_emaclose17=rocEma17,
                     d_roc_emaclose34=rocEma34,
+                    d_roc_emaclose50=rocEma50,
                     d_roc_emaclose72=rocEma72,
                     d_roc_emaclose144=rocEma144,
+                    d_roc_emaclose200=rocEma200,
                     d_roc_emaclose305=rocEma305,
                     d_roc_emaclose610=rocEma610,
                     d_roc_emaclose1292=rocEma1292,
@@ -368,13 +375,6 @@ def updateTechnicalCondition(symbol, lastXrows):
                         .values_list('d_ema_close34', 'd_ema_close144', 'd_ema_close610')
                         .order_by('asset_datetime'))
 
-    # Respect the order: [0]=d_roc_high2, [1]=d_roc_low2...
-    rocList = list(D_roc.objects.filter(d_raw_id__asset_symbol__exact=symbol)
-                        .exclude(d_raw_id__d_close=0)
-                        .values_list('d_roc_high2', 'd_roc_low2',
-                                     'd_roc_emaclose17', 'd_roc_emaclose72', 'd_roc_emaclose305')
-                        .order_by('asset_datetime'))
-
     # Respect the order: [0]=varEma34144, [1]=varEma144610
     varList = list(D_var.objects.filter(d_raw_id__asset_symbol__exact=symbol)
                    .exclude(d_raw_id__d_close=0)
@@ -401,9 +401,6 @@ def updateTechnicalCondition(symbol, lastXrows):
         high_4p = highList[x - 3:x + 1]
         low_4p = lowList[x - 3:x + 1]
 
-        rocEmaClose72 = rocList[x][3]
-        rocEmaClose305 = rocList[x][4]
-
         varEma1734 = varList[x][0]
         varEma3472 = varList[x][1]
         varEma72144 = varList[x][2]
@@ -417,7 +414,6 @@ def updateTechnicalCondition(symbol, lastXrows):
         pivot = TechnicalCondition.pivot(high_4p, low_4p)
         low_ema_btl = TechnicalCondition.ema_btl(low, emaClose34, emaClose144, emaClose610)
         high_ema_btl = TechnicalCondition.ema_btl(high, emaClose34, emaClose144, emaClose610)
-        emaroc_btl = TechnicalCondition.emaroc_btl(rocEmaClose72, rocEmaClose305)
         ema_range = TechnicalCondition.ema_range(varEma1734, varEma3472, varEma72144, varEma144305, varEma305610)
         ema_trend = TechnicalCondition.ema_trend(varEma1734, varEma3472, varEma72144, varEma144305, varEma305610)
         phibo_alignment = TechnicalCondition.phibo_alignment(pvList[x], pcList[x])
@@ -439,7 +435,6 @@ def updateTechnicalCondition(symbol, lastXrows):
                                    pivot=pivot,
                                    low_ema_btl=low_ema_btl,
                                    high_ema_btl=high_ema_btl,
-                                   emaroc_btl=emaroc_btl,
                                    ema_range=ema_range,
                                    ema_trend=ema_trend,
                                    ema_test=ema_test,
@@ -497,7 +492,7 @@ def updateSetup(symbol):
     # ROCs
     rocList = list(D_roc.objects.filter(d_raw_id__asset_symbol__exact=symbol)
                    .exclude(d_raw__d_close=0)
-                   .values_list('d_roc_emaclose34')
+                   .values_list('d_roc_emaclose8')
                    .order_by('asset_datetime'))
     # Technical Conditions
     pivotList = list(D_technicalCondition.objects.filter(d_raw__asset_symbol__exact=symbol)
@@ -542,7 +537,7 @@ def updateSetup(symbol):
 
     for x in range(610, len(adtList)):
         adt = adtList[x]
-        roc_ema34 = rocList[x][0]
+        roc_ema8 = rocList[x][0]
 
         pivot = pivotList[x]
         low_ema_btl_3p = lowemabtlList[x - 2:x + 1]
@@ -556,7 +551,7 @@ def updateSetup(symbol):
         # PHIBO
         tcId_phibo = Setup.get_tcId_phibo(phibo_test_3p, phibo_alignment_3p,
                                           low_ema_btl_3p, high_ema_btl_3p,
-                                          pivot, roc_ema34)
+                                          pivot, roc_ema8)
 
         if tcId_phibo:
             setup = Setup()
