@@ -1,6 +1,6 @@
 from django_engine import settings
 from market import managers
-from market.functions import ema, roc
+from market.functions import sma, ema, roc
 from market.functions import utils as phioon_utils
 import pandas as pd
 
@@ -96,6 +96,65 @@ def updatePvpc(symbol, lastXrows):  # For each Asset
         pvpc.bulk_create(objs)
 
 
+def updateSma(symbol, lastXrows):
+    from market.models import D_raw, D_sma
+
+    d_raw = D_raw.objects.only('asset_datetime')
+    dSma = D_sma()
+    objs = []
+
+    # Ordered by 'd_datetime' ASCENDENT
+    adtList = list(D_raw.objects.filter(asset_symbol=symbol)
+                   .exclude(d_close=0)
+                   .values_list('asset_datetime', flat=True)
+                   .order_by('d_datetime'))
+    closeList = list(D_raw.objects.filter(asset_symbol=symbol)
+                     .exclude(d_close=0)
+                     .values_list('d_close', flat=True)
+                     .order_by('d_datetime'))
+
+    df = pd.DataFrame(closeList)[0]
+    sma_close7 = sma.getSmaList(df, 7)
+    sma_close10 = sma.getSmaList(df, 10)
+    sma_close20 = sma.getSmaList(df, 20)
+    sma_close21 = sma.getSmaList(df, 21)
+    sma_close30 = sma.getSmaList(df, 30)
+    sma_close50 = sma.getSmaList(df, 50)
+    sma_close55 = sma.getSmaList(df, 55)
+    sma_close100 = sma.getSmaList(df, 100)
+    sma_close200 = sma.getSmaList(df, 200)
+
+    for x in range(len(adtList)):
+        adt = adtList[x]
+        sma7 = sma_close7[x]
+        sma10 = sma_close10[x]
+        sma20 = sma_close20[x]
+        sma21 = sma_close21[x]
+        sma30 = sma_close30[x]
+        sma50 = sma_close50[x]
+        sma55 = sma_close55[x]
+        sma100 = sma_close100[x]
+        sma200 = sma_close200[x]
+
+        obj = D_sma(d_raw=d_raw.get(asset_datetime=adt),
+                    asset_datetime=adt,
+                    d_sma_close7=sma7,
+                    d_sma_close10=sma10,
+                    d_sma_close20=sma20,
+                    d_sma_close21=sma21,
+                    d_sma_close30=sma30,
+                    d_sma_close50=sma50,
+                    d_sma_close55=sma55,
+                    d_sma_close100=sma100,
+                    d_sma_close200=sma200)
+        objs.append(obj)
+
+    if lastXrows > 0:
+        dSma.updateOrCreateObjs(objs[-lastXrows:])  # First X Ascending
+    else:
+        dSma.bulk_create(objs)
+
+
 def updateEma(symbol, lastXrows):
     from market.models import D_raw, D_ema
 
@@ -165,7 +224,7 @@ def updateEma(symbol, lastXrows):
 
 
 def updateRoc(symbol, lastXrows):
-    from market.models import Logging, D_raw, D_roc, D_ema
+    from market.models import Logging, D_raw, D_roc, D_sma, D_ema
 
     l = Logging()
     d_raw = D_raw.objects.only('asset_datetime')
@@ -177,18 +236,11 @@ def updateRoc(symbol, lastXrows):
                    .exclude(d_close=0)
                    .values_list('asset_datetime', flat=True)
                    .order_by('d_datetime'))
-    highList = list(D_raw.objects.filter(asset_symbol=symbol)
-                    .exclude(d_close=0)
-                    .values_list('d_high', flat=True)
-                    .order_by('d_datetime'))
-    lowList = list(D_raw.objects.filter(asset_symbol=symbol)
-                   .exclude(d_close=0)
-                   .values_list('d_low', flat=True)
-                   .order_by('d_datetime'))
-    closeList = list(D_raw.objects.filter(asset_symbol=symbol)
-                     .exclude(d_close=0)
-                     .values_list('d_close', flat=True)
-                     .order_by('d_datetime'))
+    closeSmaList = list(D_sma.objects.filter(d_raw_id__asset_symbol__exact=symbol)
+                        .exclude(d_raw_id__d_close=0)
+                        .values_list('d_sma_close7', 'd_sma_close10', 'd_sma_close20', 'd_sma_close21', 'd_sma_close30',
+                                     'd_sma_close50', 'd_sma_close55', 'd_sma_close100', 'd_sma_close200')
+                        .order_by('asset_datetime'))
     closeEmaList = list(D_ema.objects.filter(d_raw_id__asset_symbol__exact=symbol)
                         .exclude(d_raw_id__d_close=0)
                         .values_list('d_ema_close8', 'd_ema_close9', 'd_ema_close17', 'd_ema_close34', 'd_ema_close50',
@@ -204,6 +256,17 @@ def updateRoc(symbol, lastXrows):
         return
 
     df = pd.DataFrame(closeEmaList)[:]
+
+    roc_smaClose7 = roc.getRocList(df[0], 7 - 1)  # Related to # periods behind
+    roc_smaClose10 = roc.getRocList(df[1], 10 - 1)  # Related to # periods behind
+    roc_smaClose20 = roc.getRocList(df[2], 20 - 1)  # Related to # periods behind
+    roc_smaClose21 = roc.getRocList(df[3], 21 - 1)  # Related to # periods behind
+    roc_smaClose30 = roc.getRocList(df[4], 30 - 1)  # Related to # periods behind
+    roc_smaClose50 = roc.getRocList(df[4], 50 - 1)  # Related to # periods behind
+    roc_smaClose55 = roc.getRocList(df[4], 55 - 1)  # Related to # periods behind
+    roc_smaClose100 = roc.getRocList(df[5], 100 - 1)  # Related to # periods behind
+    roc_smaClose200 = roc.getRocList(df[7], 200 - 1)  # Related to # periods behind
+
     roc_emaClose8 = roc.getRocList(df[0], 8 - 1)  # Related to # periods behind
     roc_emaClose9 = roc.getRocList(df[1], 9 - 1)  # Related to # periods behind
     roc_emaClose17 = roc.getRocList(df[2], 17 - 1)  # Related to # periods behind
@@ -219,6 +282,17 @@ def updateRoc(symbol, lastXrows):
 
     for x in range(len(adtList)):
         adt = adtList[x]
+
+        rocSma7 = roc_smaClose7[x]
+        rocSma10 = roc_smaClose10[x]
+        rocSma20 = roc_smaClose20[x]
+        rocSma21 = roc_smaClose21[x]
+        rocSma30 = roc_smaClose30[x]
+        rocSma50 = roc_smaClose50[x]
+        rocSma55 = roc_smaClose55[x]
+        rocSma100 = roc_smaClose100[x]
+        rocSma200 = roc_smaClose200[x]
+
         rocEma8 = roc_emaClose8[x]
         rocEma9 = roc_emaClose9[x]
         rocEma17 = roc_emaClose17[x]
@@ -234,6 +308,17 @@ def updateRoc(symbol, lastXrows):
 
         obj = D_roc(d_raw=d_raw.get(asset_datetime=adt),
                     asset_datetime=adt,
+
+                    d_roc_smaclose7=rocSma7,
+                    d_roc_smaclose10=rocSma10,
+                    d_roc_smaclose20=rocSma20,
+                    d_roc_smaclose21=rocSma21,
+                    d_roc_smaclose30=rocSma30,
+                    d_roc_smaclose50=rocSma50,
+                    d_roc_smaclose55=rocSma55,
+                    d_roc_smaclose100=rocSma100,
+                    d_roc_smaclose200=rocSma200,
+
                     d_roc_emaclose8=rocEma8,
                     d_roc_emaclose9=rocEma9,
                     d_roc_emaclose17=rocEma17,

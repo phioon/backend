@@ -10,6 +10,7 @@ urlpatterns = [
     path('indicators/', views.IndicatorList, name='Indicators avaliable'),
     path('d/raw/', views.D_RawList.as_view(), name='D_Raw data'),
     path('d/quote/latest/', views.D_QuoteLatestList, name='D_quote latest data'),
+    path('d/sma/latest/', views.D_SmaLatestList, name='D_sma latest data'),
     path('d/ema/latest/', views.D_EmaLatestList, name='D_ema latest data'),
     path('d/phibo/latest/', views.D_PhiboLatestList, name='D_pvpc latest data'),
     path('d/roc/latest/', views.D_RocLatestList, name='D_roc latest data'),

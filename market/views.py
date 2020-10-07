@@ -12,7 +12,7 @@ from django_engine import settings
 from .functions import utils as phioon_utils
 from . import serializers
 from .models import StockExchange, Asset, TechnicalCondition
-from .models import D_raw, D_pvpc, D_ema, D_roc, D_setup, D_setupSummary
+from .models import D_raw, D_pvpc, D_sma, D_ema, D_roc, D_setup, D_setupSummary
 from .cron import m15, daily, monthly, onDemand
 
 from django.utils import timezone
@@ -85,6 +85,7 @@ def IndicatorList(request):
 
     # Requirements
     d_raw_fields = D_raw().get_field_list(field_type='indicator')
+    d_sma_fields = D_sma().get_field_list(field_type='indicator')
     d_ema_fields = D_ema().get_field_list(field_type='indicator')
     d_pvpc_fields = D_pvpc().get_field_list(field_type='indicator')
     d_roc_fields = D_roc().get_field_list(field_type='indicator')
@@ -117,7 +118,33 @@ def IndicatorList(request):
         })
         result.append(obj)
 
-    # 2.2 Price Lagging: EMA
+    # 2.2 Price Lagging: SMA
+    category = 'price_lagging'
+    subcategory = 'moving_average'
+    indicator = 'sma'
+    for field_name in d_sma_fields:
+        periods = int(re.findall('[0-9]+', field_name)[0])
+        generic_id = str(field_name)[str(field_name).index('_') + 1:]
+
+        obj = phioon_utils.retrieve_obj_from_obj_list(result, 'id', generic_id)
+        if not obj:
+            # Create it
+            obj = {
+                'id': generic_id,
+                'instances': [],
+                'category': category,
+                'subcategory': subcategory,
+                'indicator': indicator,
+                'periods': periods
+            }
+
+        obj['instances'].append({
+            'name': field_name,
+            'interval': time_interval
+        })
+        result.append(obj)
+
+    # 2.3 Price Lagging: EMA
     category = 'price_lagging'
     subcategory = 'moving_average'
     indicator = 'ema'
@@ -143,7 +170,7 @@ def IndicatorList(request):
         })
         result.append(obj)
 
-    # 2.3 Price Lagging: PHIBO
+    # 2.4 Price Lagging: PHIBO
     category = 'price_lagging'
     subcategory = 'phibo'
     indicator = 'pvpc'
@@ -169,7 +196,7 @@ def IndicatorList(request):
         })
         result.append(obj)
 
-    # 2.4 Centered Oscillator: ROC
+    # 2.5 Centered Oscillator: ROC
     category = 'centered_oscillator'
     subcategory = 'roc'
     indicator = 'roc'
@@ -221,6 +248,61 @@ class D_RawList(generics.ListAPIView):
         return D_raw.objects.filter(asset_symbol=asset,
                                     d_datetime__gte=dateFrom,
                                     d_datetime__lte=dateTo + ' 23:59:59')
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def D_SmaLatestList(request):
+    stockExchange = request.query_params.get('stockExchange')
+    assets = request.query_params.get('assets')
+    lastPeriods = int(request.query_params.get('lastPeriods'))
+    instances = request.query_params.get('instances')
+    instances = instances.split(',')
+    result = {
+        'latest_datetime': None,
+        'data': []
+    }
+
+    if lastPeriods is None or lastPeriods <= 0 or lastPeriods >= 5:
+        lastPeriods = 1
+
+    dates = D_raw.objects.values('d_datetime').distinct().order_by('-d_datetime')
+    dateFrom = dates[lastPeriods - 1]['d_datetime']
+    result['latest_datetime'] = dates[0]['d_datetime']
+
+    # Define which assets are selected
+    if stockExchange:
+        assets = Asset.objects.filter(stockExchange=stockExchange, is_considered_for_analysis=True)
+    else:
+        assets = assets.split(',')
+        assets = Asset.objects.filter(pk__in=assets, is_considered_for_analysis=True)
+
+    # Append data into result
+    for asset in assets:
+        objs = list(D_sma.objects.filter(d_raw__asset_symbol=asset, d_raw__d_datetime__gte=dateFrom)
+                    .order_by('-asset_datetime'))
+
+        if len(objs) != lastPeriods:
+            # There is no enough data in database
+            continue
+
+        if objs:
+            asset_data = {'asset_symbol': asset.asset_symbol}
+
+            for x in range(len(objs)):
+                # For each time interval...
+                for i in instances:
+                    if hasattr(objs[x], i):
+                        # Instance exists
+                        i_value = getattr(objs[x], i)
+                        if i_value:
+                            # Instance value is not null nor 0
+                            key = str(i) + '__p' + str(x)
+                            asset_data[key] = i_value
+
+            result['data'].append(asset_data)
+
+    return Response(result)
 
 
 @api_view(['GET'])

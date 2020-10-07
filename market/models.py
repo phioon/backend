@@ -832,6 +832,7 @@ class D_raw(models.Model):
     def updateDependencies(self, symbol, lastXrows):
         a = Asset()
         pvpc = D_pvpc()
+        sma = D_sma()
         ema = D_ema()
         roc = D_roc()
         var = D_var()
@@ -840,6 +841,7 @@ class D_raw(models.Model):
 
         lastXrows = a.updateStats(symbol=symbol, lastXrows=lastXrows)
         pvpc.updateAsset(symbol=symbol, lastXrows=lastXrows)
+        sma.updateAsset(symbol=symbol, lastXrows=lastXrows)
         ema.updateAsset(symbol=symbol, lastXrows=lastXrows)
         roc.updateAsset(symbol=symbol, lastXrows=lastXrows)
         var.updateAsset(symbol=symbol, lastXrows=lastXrows)
@@ -910,6 +912,58 @@ class D_pvpc(models.Model):
                 })
 
 
+class D_sma(models.Model):
+    d_raw = models.OneToOneField(D_raw, db_index=True, on_delete=models.CASCADE)
+    asset_datetime = models.CharField(max_length=64, unique=True, db_index=True)  # (PETR4.SA_20191231000000)
+
+    d_sma_close7 = models.FloatField(null=True)
+    d_sma_close10 = models.FloatField(null=True)
+    d_sma_close20 = models.FloatField(null=True)
+    d_sma_close21 = models.FloatField(null=True)
+    d_sma_close30 = models.FloatField(null=True)
+    d_sma_close50 = models.FloatField(null=True)
+    d_sma_close55 = models.FloatField(null=True)
+    d_sma_close100 = models.FloatField(null=True)
+    d_sma_close200 = models.FloatField(null=True)
+
+    def __str__(self):
+        return self.asset_datetime
+
+    def get_field_list(self, field_type='indicator'):
+        # Possible entries for 'field_type': ['indicator']
+        fields = []
+
+        if field_type == 'indicator':
+            ignore_fields = ['id', 'd_raw', 'asset_datetime']
+            for field in self._meta.fields:
+                if field.name not in ignore_fields:
+                    fields.append(field.name)
+
+        return fields
+
+    def updateAsset(self, symbol, lastXrows=0):
+        symbolData_d.updateSma(symbol=symbol, lastXrows=lastXrows)
+
+    def bulk_create(self, objs):
+        D_sma.objects.bulk_create(objs, ignore_conflicts=True)
+
+    def updateOrCreateObjs(self, objs):
+        for x in range(len(objs)):
+            D_sma.objects.update_or_create(
+                asset_datetime=objs[x].asset_datetime,
+                defaults={
+                    'd_raw': objs[x].d_raw,
+                    'd_sma_close7': objs[x].d_sma_close7,
+                    'd_sma_close10': objs[x].d_sma_close10,
+                    'd_sma_close20': objs[x].d_sma_close20,
+                    'd_sma_close21': objs[x].d_sma_close21,
+                    'd_sma_close30': objs[x].d_sma_close30,
+                    'd_sma_close50': objs[x].d_sma_close50,
+                    'd_sma_close55': objs[x].d_sma_close55,
+                    'd_sma_close100': objs[x].d_sma_close100,
+                    'd_sma_close200': objs[x].d_sma_close200})
+
+
 class D_ema(models.Model):
     d_raw = models.OneToOneField(D_raw, db_index=True, on_delete=models.CASCADE)
     asset_datetime = models.CharField(max_length=64, unique=True, db_index=True)  # (PETR4.SA_20191231000000)
@@ -972,6 +1026,16 @@ class D_roc(models.Model):
     d_raw = models.OneToOneField(D_raw, verbose_name='Asset and Datetime', on_delete=models.CASCADE)
     asset_datetime = models.CharField(max_length=64, unique=True, db_index=True)  # (PETR4.SA_20191231000000)
 
+    d_roc_smaclose7 = models.FloatField(null=True)
+    d_roc_smaclose10 = models.FloatField(null=True)
+    d_roc_smaclose20 = models.FloatField(null=True)
+    d_roc_smaclose21 = models.FloatField(null=True)
+    d_roc_smaclose30 = models.FloatField(null=True)
+    d_roc_smaclose50 = models.FloatField(null=True)
+    d_roc_smaclose55 = models.FloatField(null=True)
+    d_roc_smaclose100 = models.FloatField(null=True)
+    d_roc_smaclose200 = models.FloatField(null=True)
+
     d_roc_emaclose8 = models.FloatField(null=True)
     d_roc_emaclose9 = models.FloatField(null=True)
     d_roc_emaclose17 = models.FloatField(null=True)
@@ -1012,6 +1076,16 @@ class D_roc(models.Model):
                 asset_datetime=objs[x].asset_datetime,
                 defaults={
                     'd_raw': objs[x].d_raw,
+                    'd_roc_smaclose7': objs[x].d_roc_smaclose7,
+                    'd_roc_smaclose10': objs[x].d_roc_smaclose10,
+                    'd_roc_smaclose20': objs[x].d_roc_smaclose20,
+                    'd_roc_smaclose21': objs[x].d_roc_smaclose21,
+                    'd_roc_smaclose30': objs[x].d_roc_smaclose30,
+                    'd_roc_smaclose50': objs[x].d_roc_smaclose50,
+                    'd_roc_smaclose55': objs[x].d_roc_smaclose55,
+                    'd_roc_smaclose100': objs[x].d_roc_smaclose100,
+                    'd_roc_smaclose200': objs[x].d_roc_smaclose200,
+
                     'd_roc_emaclose8': objs[x].d_roc_emaclose8,
                     'd_roc_emaclose9': objs[x].d_roc_emaclose9,
                     'd_roc_emaclose17': objs[x].d_roc_emaclose17,
