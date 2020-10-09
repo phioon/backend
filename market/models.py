@@ -725,11 +725,17 @@ class Profile(models.Model):
 
         if data:
             asset = Asset.objects.get(asset_symbol=symbol)
-            try:
+
+            if hasattr(asset, 'profile'):
                 profile = Profile.objects.get(asset_symbol=symbol)
-            except Profile.DoesNotExist:
+            else:
                 profile = Profile()
                 profile.asset_symbol = asset
+
+            if not profile.asset_name:
+                profile.asset_name = data['asset_name']
+
+            if not profile.asset_label:
                 profile.asset_label = data['asset_label']
 
             if not profile.country_code:
