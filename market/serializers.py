@@ -22,6 +22,7 @@ class StockExchangeSerializer(serializers.ModelSerializer):
         return models.Asset.objects.filter(stockExchange=obj).values_list('pk', flat=True)
 
 
+# DEPRECATED
 class AssetBasicSerializer(serializers.ModelSerializer):
     asset_label = serializers.ReadOnlyField(source='profile.asset_label')
     asset_name = serializers.ReadOnlyField(source='profile.asset_name')
@@ -126,7 +127,7 @@ class AssetDetailSerializer(serializers.ModelSerializer):
 class D_rawBasicSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.D_raw
-        fields = ['asset_symbol', 'd_datetime', 'd_close', 'd_volume']
+        fields = ['asset_symbol', 'd_datetime', 'd_close']
 
 
 class D_rawDetailSerializer(serializers.ModelSerializer):
