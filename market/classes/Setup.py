@@ -87,7 +87,7 @@ class Setup:
         elif self.tc.id == 'phibo_72_down':
             self.phibo_72_down(highList[:i + 1], lowList[:i + 1], pcList[:i + 1])
 
-        # if self.tc.id and self.started_on == '2020-06-16 00:00:00':
+        # if self.tc.id and self.started_on == '2020-11-30 00:00:00':
         #     print('tc_id: %s || started_on: %s || %s || %s' % (self.tc.id, self.started_on, self.target, self.stop_loss))
 
         if self.target and self.stop_loss:
