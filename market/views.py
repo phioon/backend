@@ -625,7 +625,7 @@ def run_offline_raw_data_se_short(request, se_short, apiKey=None):
                     'http_request': {
                         'http_method': 'GET',
                         'url': url}}
-                client.create_task(parent, task)
+                client.create_task(parent=parent, task=task)
         else:
             for asset in sync_list:
                 print('Working on %s...' % asset.asset_symbol)
@@ -677,7 +677,7 @@ def run_offline_setup_se_short(request, se_short, apiKey=None):
                     'http_request': {
                         'http_method': 'GET',
                         'url': url}}
-                client.create_task(parent, task)
+                client.create_task(parent=parent, task=task)
         else:
             for asset in sync_list:
                 print('Working on %s...' % asset.asset_symbol)
@@ -807,7 +807,7 @@ def run_raw_data_se_short(request, se_short, last_x_rows=5, apiKey=None):
                     'http_request': {
                         'http_method': 'GET',
                         'url': url}}
-                client.create_task(parent, task)
+                client.create_task(parent=parent, task=task)
         else:
             for asset in sync_list:
                 print('Working on %s...' % asset.asset_symbol)
@@ -854,7 +854,7 @@ def update_realtime_se_short(request, se_short, apiKey=None):
                     'http_request': {
                         'http_method': 'GET',
                         'url': url}}
-                client.create_task(parent, task)
+                client.create_task(parent=parent, task=task)
         else:
             for asset in assets:
                 print('Working on %s...' % asset.asset_symbol)
