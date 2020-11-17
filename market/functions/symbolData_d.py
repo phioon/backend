@@ -577,7 +577,7 @@ def updateSetup(symbol):
     # ROCs
     rocList = list(D_roc.objects.filter(d_raw_id__asset_symbol__exact=symbol)
                    .exclude(d_raw__d_close=0)
-                   .values_list('d_roc_emaclose8')
+                   .values_list('d_roc_emaclose17')
                    .order_by('asset_datetime'))
     # Technical Conditions
     pivotList = list(D_technicalCondition.objects.filter(d_raw__asset_symbol__exact=symbol)
@@ -622,7 +622,7 @@ def updateSetup(symbol):
 
     for x in range(610, len(adtList)):
         adt = adtList[x]
-        roc_ema8 = rocList[x][0]
+        roc_ema17 = rocList[x][0]
 
         pivot = pivotList[x]
         low_ema_btl_3p = lowemabtlList[x - 2:x + 1]
@@ -636,7 +636,7 @@ def updateSetup(symbol):
         # PHIBO
         tcId_phibo = Setup.get_tcId_phibo(phibo_test_3p, phibo_alignment_3p,
                                           low_ema_btl_3p, high_ema_btl_3p,
-                                          pivot, roc_ema8)
+                                          pivot, roc_ema17)
 
         if tcId_phibo:
             setup = Setup()

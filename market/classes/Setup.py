@@ -26,7 +26,7 @@ class Setup:
 
     # Phibo
     @staticmethod
-    def get_tcId_phibo(phibo_test_3p, phibo_alignment_3p, low_ema_btl_3p, high_ema_btl_3p, pivot, roc_ema8):
+    def get_tcId_phibo(phibo_test_3p, phibo_alignment_3p, low_ema_btl_3p, high_ema_btl_3p, pivot, roc_ema17):
         low_ema_btl_yesterday = low_ema_btl_3p[1]
         high_ema_btl_yesterday = high_ema_btl_3p[1]
         phibo_test_yesterday = phibo_test_3p[1]
@@ -40,13 +40,13 @@ class Setup:
         elif (phibo_alignment_yesterday in [6, 7] and
               phibo_test_yesterday == 305 and
               low_ema_btl_yesterday in [6, 7] and
-              roc_ema8 > 0 and
+              roc_ema17 > 0 and
               pivot == 1):
             return 'phibo_305_up'
         elif (phibo_alignment_yesterday in [6, 7] and
               phibo_test_yesterday == 72 and
               low_ema_btl_yesterday in [6, 7] and
-              roc_ema8 > 0 and
+              roc_ema17 > 0 and
               pivot == 1):
             return 'phibo_72_up'
 
@@ -63,7 +63,7 @@ class Setup:
         elif (phibo_alignment_yesterday in [0, 1] and
               phibo_test_yesterday == -72 and
               high_ema_btl_yesterday in [0, 1] and
-              roc_ema8 < 0 and
+              roc_ema17 < 0 and
               pivot == -1):
             return 'phibo_72_down'
 
@@ -87,7 +87,7 @@ class Setup:
         elif self.tc.id == 'phibo_72_down':
             self.phibo_72_down(highList[:i + 1], lowList[:i + 1], pcList[:i + 1])
 
-        # if self.tc.id and self.started_on == '2020-11-30 00:00:00':
+        # if self.tc.id and self.started_on == '2020-09-30 00:00:00':
         #     print('tc_id: %s || started_on: %s || %s || %s' % (self.tc.id, self.started_on, self.target, self.stop_loss))
 
         if self.target and self.stop_loss:
