@@ -580,21 +580,30 @@ class Asset(models.Model):
     def frontend_access(self, assets):
         assets = Asset.objects.filter(asset_symbol__in=assets)
         today = datetime.today().date()
-        refresh_access = False
+        refresh_access = None
 
         for a in assets:
+            sync_raw_data = None
+
             if (today - a.last_access_time) >= timedelta(days=30):
                 # If Asset hasn't synchronized for 30 days or more,
                 # it must sync now before return data to frontend
                 refresh_access = True
+                sync_raw_data = True
                 realtime = Realtime()
                 realtime.update_realtime_data(a.asset_symbol)
 
             elif (today - a.last_access_time) >= timedelta(days=1):
                 refresh_access = True
 
+            if sync_raw_data:
+                d_raw = D_raw()
+                d_raw.updateAsset(symbol=a.asset_symbol)
+
+
         if refresh_access:
             assets.update(last_access_time=today)
+
 
     # Monthly
     def update_assets_by_stock_exchange(self, se_short):
@@ -688,11 +697,10 @@ class Asset(models.Model):
             asset.save()
 
             if is_considered_for_analysis:
-                # If asset was not considered before and now it become considered,
+                # If asset was not considered before and now it became considered,
                 # it doesn't matter what is the current lastXrows value, bring data from scratch
                 # And let D_raw know next dependencies should run with the new lastXrows value.
                 lastXrows = 10000
-                symbolData_d.updateRaw(symbol, lastXrows)
 
         return lastXrows
 
@@ -832,11 +840,20 @@ class D_raw(models.Model):
         return fields
 
     def updateAsset(self, symbol, lastXrows=5):
+        a = Asset()
+        lastXrows = a.updateStats(symbol=symbol, lastXrows=lastXrows)
+
+        if lastXrows < 10:
+            rows_count = D_raw.objects.filter(asset_symbol=symbol).values('pk').count()
+            if rows_count <= 10:
+                # Situation 1: Asset is pretty new and company just launched their IPO
+                # Situation 2: Asset hasn't been synced yet
+                lastXrows = 10000
+
         symbolData_d.updateRaw(symbol=symbol, last_x_rows=lastXrows)
         self.updateDependencies(symbol, lastXrows=lastXrows)
 
     def updateDependencies(self, symbol, lastXrows):
-        a = Asset()
         pvpc = D_pvpc()
         sma = D_sma()
         ema = D_ema()
@@ -845,7 +862,6 @@ class D_raw(models.Model):
         tc = D_technicalCondition()
         setup = D_setup()
 
-        lastXrows = a.updateStats(symbol=symbol, lastXrows=lastXrows)
         pvpc.updateAsset(symbol=symbol, lastXrows=lastXrows)
         sma.updateAsset(symbol=symbol, lastXrows=lastXrows)
         ema.updateAsset(symbol=symbol, lastXrows=lastXrows)

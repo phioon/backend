@@ -90,6 +90,17 @@ def IndicatorList(request):
     d_pvpc_fields = D_pvpc().get_field_list(field_type='indicator')
     d_roc_fields = D_roc().get_field_list(field_type='indicator')
 
+    # 1. Constant
+    # obj = {
+    #     'time_interval': 'any',
+    #     'category': 'constant',
+    #     'subcategory': 'constant',
+    #     'indicator': 'constant',
+    #     'periods': 0,
+    #     'id': 'constant',
+    #     'instances': [{}],
+    # }
+
     # 2. Daily
     time_interval = 'd'
     # 2.1 Price Lagging: Quote
@@ -173,7 +184,7 @@ def IndicatorList(request):
     # 2.4 Price Lagging: PHIBO
     category = 'price_lagging'
     subcategory = 'phibo'
-    indicator = 'pvpc'
+    indicator = 'phibo'
     for field_name in d_pvpc_fields:
         periods = int(re.findall('[0-9]+', field_name)[0])
         generic_id = str(field_name)[str(field_name).index('_') + 1:]
@@ -199,10 +210,15 @@ def IndicatorList(request):
     # 2.5 Centered Oscillator: ROC
     category = 'centered_oscillator'
     subcategory = 'roc'
-    indicator = 'roc'
+    indicator = None
     for field_name in d_roc_fields:
         periods = int(re.findall('[0-9]+', field_name)[0])
         generic_id = str(field_name)[str(field_name).index('_') + 1:]
+
+        if 'roc_ema' in field_name:
+            indicator = 'ema'
+        elif 'roc_sma' in field_name:
+            indicator = 'sma'
 
         obj = phioon_utils.retrieve_obj_from_obj_list(result, 'id', generic_id)
         if not obj:
