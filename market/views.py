@@ -423,7 +423,7 @@ def D_QuoteLatestList(request):
                 # Asset has Realtime instance
                 last_trade_time = asset.realtime.last_trade_time
 
-                if last_trade_time > raw_objs[0]['fields']['d_datetime']:
+                if last_trade_time[0:10] > raw_objs[0]['fields']['d_datetime'][0:10]:
                     # Realtime data is newer than raw data...
                     # Inserts new item into position 0
                     raw_objs.insert(0, {
