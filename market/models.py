@@ -724,7 +724,7 @@ class Profile(models.Model):
     business_summary = models.TextField(null=True)
 
     def __str__(self):
-        return self.asset_symbol
+        return self.asset_symbol.asset_symbol
 
     def update_asset_profile(self, symbol):
         # If Profile already exists, update only fields which are not filled yet.
@@ -788,7 +788,7 @@ class Realtime(models.Model):
     pct_change = models.FloatField(null=True)
 
     def __str__(self):
-        return self.asset_symbol
+        return self.asset_symbol.asset_symbol
 
     def update_realtime_data(self, symbol):
         provider_manager = managers.ProviderManager()

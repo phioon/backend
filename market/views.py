@@ -56,19 +56,23 @@ class AssetList(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
-        stockExchange = assets = None
+        stockExchange = assets = detailed = None
 
         if 'assets' in request.data:
             assets = request.data['assets']
         if 'stockExchange' in request.data:
             stockExchange = request.data['stockExchange']
+        if 'detailed' in request.data:
+            detailed = str(request.data['detailed']).lower()
 
         if assets:
             assets = assets.split(',')
 
             # Log into DB last_access_time. It is used for tracking usage of assets
             a = Asset()
-            a.frontend_access(assets)
+
+            if detailed == 'true':
+                a.frontend_access(assets)
 
             assets = Asset.objects.filter(asset_symbol__in=assets)
         else:
