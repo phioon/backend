@@ -739,10 +739,21 @@ def updateSetupSummary(symbol):
         success_rate = phioon_utils.percentage(gain_count, total_count, decimals=1, if_denominator_is_zero=0)
 
         # Determine if setup will be visible at this point of time
-        if (success_rate >= settings.MARKET_MIN_SUCCESS_RATE and
+        if (setup.is_public is None and
+                success_rate >= settings.MARKET_MIN_SUCCESS_RATE and
                 setup.risk_reward >= settings.MARKET_MIN_REWARD_RISK):
+            # is_public hasn't been touched yet and setup should be public...
             setup.is_public = True
-            setup.save()
+
+        elif (setup.is_public is None and total_count == 1 and
+                success_rate >= settings.MARKET_MIN_SUCCESS_RATE and
+                setup.risk_reward >= settings.MARKET_MIN_REWARD_RISK):
+            # is_public hasn't been touched yet and it's the first time...
+            setup.is_public = True
+        else:
+            setup.is_public = False
+
+        setup.save()
 
     for [setup_id, data] in setups.items():
         asset_setup = str(symbol + '_' + setup_id)

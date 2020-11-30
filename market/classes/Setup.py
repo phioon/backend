@@ -196,7 +196,7 @@ class Setup:
                                                     projection_percentage=1,
                                                     min_periods_to_consider=34,
                                                     max_periods_to_consider=144,
-                                                    inc_interval=4)
+                                                    inc_interval=6)
 
         self.store_fibonacci_projection(fiboProjection)
         self.target = round((pvTarget + fiboProjection['projection']) / 2, 2)
@@ -264,7 +264,7 @@ class Setup:
                                                     projection_percentage=0.95,
                                                     min_periods_to_consider=8,
                                                     max_periods_to_consider=34,
-                                                    inc_interval=2)
+                                                    inc_interval=4)
         self.store_fibonacci_projection(fiboProjection)
         self.target = fiboProjection['projection']
 
@@ -301,7 +301,7 @@ class Setup:
                                                     projection_percentage=0.7,
                                                     min_periods_to_consider=34,
                                                     max_periods_to_consider=144,
-                                                    inc_interval=4)
+                                                    inc_interval=6)
 
         self.store_fibonacci_projection(fiboProjection)
         self.target = round((pcTarget + fiboProjection['projection']) / 2, 2)
@@ -369,7 +369,7 @@ class Setup:
                                                     projection_percentage=0.75,
                                                     min_periods_to_consider=8,
                                                     max_periods_to_consider=34,
-                                                    inc_interval=2)
+                                                    inc_interval=4)
         self.store_fibonacci_projection(fiboProjection)
         self.target = fiboProjection['projection']
 
