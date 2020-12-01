@@ -744,16 +744,18 @@ def updateSetupSummary(symbol):
                 setup.risk_reward >= settings.MARKET_MIN_REWARD_RISK):
             # is_public hasn't been touched yet and setup should be public...
             setup.is_public = True
+            setup.save()
 
         elif (setup.is_public is None and total_count == 1 and
                 success_rate >= settings.MARKET_MIN_SUCCESS_RATE and
                 setup.risk_reward >= settings.MARKET_MIN_REWARD_RISK):
-            # is_public hasn't been touched yet and it's the first time...
+            # is_public hasn't been touched yet and it's the first time this setup happens for this asset...
             setup.is_public = True
-        else:
+            setup.save()
+        elif setup.is_public is None:
+            # is_public hasn't been touched yet...
             setup.is_public = False
-
-        setup.save()
+            setup.save()
 
     for [setup_id, data] in setups.items():
         asset_setup = str(symbol + '_' + setup_id)
