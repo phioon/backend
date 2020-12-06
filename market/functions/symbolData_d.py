@@ -255,18 +255,8 @@ def updateRoc(symbol, lastXrows):
                             % (symbol, len(adtList), len(closeEmaList)))
         return
 
+    # EMA
     df = pd.DataFrame(closeEmaList)[:]
-
-    roc_smaClose7 = roc.getRocList(df[0], 7 - 1)  # Related to # periods behind
-    roc_smaClose10 = roc.getRocList(df[1], 10 - 1)  # Related to # periods behind
-    roc_smaClose20 = roc.getRocList(df[2], 20 - 1)  # Related to # periods behind
-    roc_smaClose21 = roc.getRocList(df[3], 21 - 1)  # Related to # periods behind
-    roc_smaClose30 = roc.getRocList(df[4], 30 - 1)  # Related to # periods behind
-    roc_smaClose50 = roc.getRocList(df[4], 50 - 1)  # Related to # periods behind
-    roc_smaClose55 = roc.getRocList(df[4], 55 - 1)  # Related to # periods behind
-    roc_smaClose100 = roc.getRocList(df[5], 100 - 1)  # Related to # periods behind
-    roc_smaClose200 = roc.getRocList(df[7], 200 - 1)  # Related to # periods behind
-
     roc_emaClose8 = roc.getRocList(df[0], 8 - 1)  # Related to # periods behind
     roc_emaClose9 = roc.getRocList(df[1], 9 - 1)  # Related to # periods behind
     roc_emaClose17 = roc.getRocList(df[2], 17 - 1)  # Related to # periods behind
@@ -280,18 +270,20 @@ def updateRoc(symbol, lastXrows):
     roc_emaClose1292 = roc.getRocList(df[10], 1292 - 1)  # Related to # periods behind
     roc_emaClose2584 = roc.getRocList(df[11], 2584 - 1)  # Related to # periods behind
 
+    # SMA
+    df = pd.DataFrame(closeSmaList)[:]
+    roc_smaClose7 = roc.getRocList(df[0], 7 - 1)  # Related to # periods behind
+    roc_smaClose10 = roc.getRocList(df[1], 10 - 1)  # Related to # periods behind
+    roc_smaClose20 = roc.getRocList(df[2], 20 - 1)  # Related to # periods behind
+    roc_smaClose21 = roc.getRocList(df[3], 21 - 1)  # Related to # periods behind
+    roc_smaClose30 = roc.getRocList(df[4], 30 - 1)  # Related to # periods behind
+    roc_smaClose50 = roc.getRocList(df[4], 50 - 1)  # Related to # periods behind
+    roc_smaClose55 = roc.getRocList(df[4], 55 - 1)  # Related to # periods behind
+    roc_smaClose100 = roc.getRocList(df[5], 100 - 1)  # Related to # periods behind
+    roc_smaClose200 = roc.getRocList(df[7], 200 - 1)  # Related to # periods behind
+
     for x in range(len(adtList)):
         adt = adtList[x]
-
-        rocSma7 = roc_smaClose7[x]
-        rocSma10 = roc_smaClose10[x]
-        rocSma20 = roc_smaClose20[x]
-        rocSma21 = roc_smaClose21[x]
-        rocSma30 = roc_smaClose30[x]
-        rocSma50 = roc_smaClose50[x]
-        rocSma55 = roc_smaClose55[x]
-        rocSma100 = roc_smaClose100[x]
-        rocSma200 = roc_smaClose200[x]
 
         rocEma8 = roc_emaClose8[x]
         rocEma9 = roc_emaClose9[x]
@@ -305,6 +297,16 @@ def updateRoc(symbol, lastXrows):
         rocEma610 = roc_emaClose610[x]
         rocEma1292 = roc_emaClose1292[x]
         rocEma2584 = roc_emaClose2584[x]
+
+        rocSma7 = roc_smaClose7[x]
+        rocSma10 = roc_smaClose10[x]
+        rocSma20 = roc_smaClose20[x]
+        rocSma21 = roc_smaClose21[x]
+        rocSma30 = roc_smaClose30[x]
+        rocSma50 = roc_smaClose50[x]
+        rocSma55 = roc_smaClose55[x]
+        rocSma100 = roc_smaClose100[x]
+        rocSma200 = roc_smaClose200[x]
 
         obj = D_roc(d_raw=d_raw.get(asset_datetime=adt),
                     asset_datetime=adt,
@@ -419,7 +421,7 @@ def updateVar(symbol, lastXrows):
 
 
 def updateTechnicalCondition(symbol, lastXrows):
-    from market.models import Logging, TechnicalCondition, D_technicalCondition, D_raw, D_pvpc, D_roc, D_ema, D_var
+    from market.models import Logging, TechnicalCondition, D_technicalCondition, D_raw, D_pvpc, D_ema, D_var
 
     l = Logging()
     d_tc = D_technicalCondition()

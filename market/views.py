@@ -111,6 +111,7 @@ def IndicatorList(request):
     category = 'price_lagging'
     subcategory = 'quote'
     indicator = 'quote'
+    related_to = None
     for field_name in d_raw_fields:
         periods = 0
         generic_id = field_name[field_name.index('_') + 1:]
@@ -124,6 +125,7 @@ def IndicatorList(request):
                 'category': category,
                 'subcategory': subcategory,
                 'indicator': indicator,
+                'related_to': related_to,
                 'periods': periods
             }
 
@@ -137,9 +139,19 @@ def IndicatorList(request):
     category = 'price_lagging'
     subcategory = 'moving_average'
     indicator = 'sma'
+    related_to = None
     for field_name in d_sma_fields:
         periods = int(re.findall('[0-9]+', field_name)[0])
         generic_id = str(field_name)[str(field_name).index('_') + 1:]
+
+        if '_open' in generic_id:
+            related_to = 'open'
+        elif '_high' in generic_id:
+            related_to = 'high'
+        elif '_low' in generic_id:
+            related_to = 'low'
+        elif '_close' in generic_id:
+            related_to = 'close'
 
         obj = phioon_utils.retrieve_obj_from_obj_list(result, 'id', generic_id)
         if not obj:
@@ -150,6 +162,7 @@ def IndicatorList(request):
                 'category': category,
                 'subcategory': subcategory,
                 'indicator': indicator,
+                'related_to': related_to,
                 'periods': periods
             }
 
@@ -163,9 +176,19 @@ def IndicatorList(request):
     category = 'price_lagging'
     subcategory = 'moving_average'
     indicator = 'ema'
+    related_to = None
     for field_name in d_ema_fields:
         periods = int(re.findall('[0-9]+', field_name)[0])
         generic_id = str(field_name)[str(field_name).index('_') + 1:]
+
+        if '_open' in generic_id:
+            related_to = 'open'
+        elif '_high' in generic_id:
+            related_to = 'high'
+        elif '_low' in generic_id:
+            related_to = 'low'
+        elif '_close' in generic_id:
+            related_to = 'close'
 
         obj = phioon_utils.retrieve_obj_from_obj_list(result, 'id', generic_id)
         if not obj:
@@ -176,6 +199,7 @@ def IndicatorList(request):
                 'category': category,
                 'subcategory': subcategory,
                 'indicator': indicator,
+                'related_to': related_to,
                 'periods': periods
             }
 
@@ -189,6 +213,7 @@ def IndicatorList(request):
     category = 'price_lagging'
     subcategory = 'phibo'
     indicator = 'phibo'
+    related_to = None
     for field_name in d_pvpc_fields:
         periods = int(re.findall('[0-9]+', field_name)[0])
         generic_id = str(field_name)[str(field_name).index('_') + 1:]
@@ -202,6 +227,7 @@ def IndicatorList(request):
                 'category': category,
                 'subcategory': subcategory,
                 'indicator': indicator,
+                'related_to': related_to,
                 'periods': periods
             }
 
@@ -214,15 +240,16 @@ def IndicatorList(request):
     # 2.5 Centered Oscillator: ROC
     category = 'centered_oscillator'
     subcategory = 'roc'
-    indicator = None
+    indicator = 'roc'
+    related_to = None
     for field_name in d_roc_fields:
         periods = int(re.findall('[0-9]+', field_name)[0])
         generic_id = str(field_name)[str(field_name).index('_') + 1:]
 
-        if 'roc_ema' in field_name:
-            indicator = 'ema'
-        elif 'roc_sma' in field_name:
-            indicator = 'sma'
+        if '_ema' in generic_id:
+            related_to = 'ema'
+        elif '_sma' in generic_id:
+            related_to = 'sma'
 
         obj = phioon_utils.retrieve_obj_from_obj_list(result, 'id', generic_id)
         if not obj:
@@ -233,6 +260,7 @@ def IndicatorList(request):
                 'category': category,
                 'subcategory': subcategory,
                 'indicator': indicator,
+                'related_to': related_to,
                 'periods': periods
             }
 
