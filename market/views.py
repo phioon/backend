@@ -526,7 +526,6 @@ def D_PhiboLatestList(request):
                     if hasattr(objs[x], i):
                         # Instance exists
                         i_value = getattr(objs[x], i)
-                        print('%s || %s || %s' % (asset.asset_symbol, i, i_value))
                         if i_value:
                             # Instance value is not null nor 0
                             key = str(i) + '__p' + str(x)
