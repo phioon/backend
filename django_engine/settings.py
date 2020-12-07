@@ -47,7 +47,7 @@ else:
     DB_DEFAULT['HOST'] = '127.0.0.1'
 
     if ACCESS_PRD_DB:
-        # [PRD] Database (remember to turn on GCloud proxy)
+        # [PRD] Database (remember to turn GAE proxy on)
         DB_DEFAULT['PORT'] = '5433'
     else:
         # [DEV] Database

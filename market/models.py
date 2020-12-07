@@ -646,7 +646,7 @@ class Asset(models.Model):
                         'http_request': {
                             'http_method': 'GET',
                             'url': url}}
-                    client.create_task(parent, task)
+                    client.create_task(parent=parent, task=task)
                 else:
                     print('Updating Profile for %s...' % asset.asset_symbol)
                     profile.update_asset_profile(asset.asset_symbol)
