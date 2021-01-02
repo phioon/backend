@@ -1,4 +1,4 @@
-from django.db.models import Q, Max
+from django.db.models import Q
 from django.http import HttpResponse
 from django.core import serializers as django_serializers
 from rest_framework.decorators import api_view, permission_classes
@@ -277,8 +277,8 @@ class D_RawList(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_serializer_class(self):
-        detailed = self.request.query_params.get('detailed')
-        if str(detailed).lower() == 'true':
+        detailed = str(self.request.query_params.get('detailed')).lower()
+        if detailed == 'true':
             return serializers.D_rawDetailSerializer
         else:
             return serializers.D_rawBasicSerializer
@@ -631,6 +631,7 @@ class D_SetupSummaryList(generics.ListAPIView):
         return setup_summary
 
 
+# --------------------
 # On-demand
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
@@ -641,6 +642,20 @@ def update_stock_exchange_list(request, apiKey=None):
         duration = str(round(time() - st, 2))
         obj_res = {'message': "Task '%s' took %s seconds to complete."
                               % ('update_stock_exchange_list', duration)}
+        return Response(obj_res)
+    else:
+        return Response(status=status.HTTP_403_FORBIDDEN)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def update_asset_profile(request, symbol, apiKey=None):
+    if apiKey == settings.API_KEY:
+        st = time()
+        monthly.update_asset_profile(symbol=symbol)
+        duration = str(round(time() - st, 2))
+        obj_res = {'message': "Task '%s' for '%s' took %s seconds to complete."
+                              % ('update_asset_profile', symbol, duration)}
         return Response(obj_res)
     else:
         return Response(status=status.HTTP_403_FORBIDDEN)
@@ -750,6 +765,7 @@ def run_offline_setup_asset(request, symbol, apiKey=None):
         return Response(status=status.HTTP_403_FORBIDDEN)
 
 
+# --------------------
 # Cron Job (1st of month at 22:00)
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
@@ -760,21 +776,6 @@ def update_asset_list(request, se_short, apiKey=None):
         duration = str(round(time() - st, 2))
         obj_res = {'message': "Task '%s' for '%s' took %s seconds to complete."
                               % ('update_asset_list', se_short, duration)}
-        return Response(obj_res)
-    else:
-        return Response(status=status.HTTP_403_FORBIDDEN)
-
-
-# Cron Job (1st of month at 22:00)
-@api_view(['GET'])
-@permission_classes([permissions.AllowAny])
-def update_asset_profile(request, symbol, apiKey=None):
-    if apiKey == settings.API_KEY:
-        st = time()
-        monthly.update_asset_profile(symbol=symbol)
-        duration = str(round(time() - st, 2))
-        obj_res = {'message': "Task '%s' for '%s' took %s seconds to complete."
-                              % ('update_asset_profile', symbol, duration)}
         return Response(obj_res)
     else:
         return Response(status=status.HTTP_403_FORBIDDEN)
@@ -869,7 +870,6 @@ def run_raw_data_se_short(request, se_short, last_x_rows=5, apiKey=None):
 
 
 # Cron Job (every 15min on weekdays)
-# Can be called out of business-hours to check non-considered Assets
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
 def update_realtime_se_short(request, se_short, apiKey=None):
@@ -915,7 +915,8 @@ def update_realtime_se_short(request, se_short, apiKey=None):
         return HttpResponse(status=status.HTTP_403_FORBIDDEN)
 
 
-# Task used by GCloud queues
+# --------------------
+# Tasks triggered by Cron jobs
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
 def run_raw_data_asset(request, symbol, last_x_rows=5, apiKey=None):
