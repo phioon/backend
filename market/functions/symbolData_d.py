@@ -714,6 +714,7 @@ def updateSetupSummary(symbol):
             }
 
         setups[setup_id]['occurrencies'] += 1
+        has_position_open = setups[setup_id]['has_position_open']
 
         if setup.is_success:
             # GAIN
@@ -741,23 +742,26 @@ def updateSetupSummary(symbol):
         success_rate = phioon_utils.percentage(gain_count, total_count, decimals=1, if_denominator_is_zero=0)
 
         # Determine if setup will be visible at this point of time
-        if (setup.is_public is None and
-                success_rate >= settings.MARKET_MIN_SUCCESS_RATE and
-                setup.risk_reward >= settings.MARKET_MIN_REWARD_RISK):
-            # is_public hasn't been touched yet and setup should be public...
-            setup.is_public = True
-            setup.save()
+        if setup.is_public is None:
+            # is_public hasn't been touched yet
+            if (success_rate >= settings.MARKET_MIN_SUCCESS_RATE and
+                    setup.risk_reward >= settings.MARKET_MIN_REWARD_RISK):
+                # Setup has good probability
+                if has_position_open:
+                    setup.is_public = False
+                else:
+                    setup.is_public = True
+                setup.save()
 
-        elif (setup.is_public is None and total_count == 1 and
-                success_rate >= settings.MARKET_MIN_SUCCESS_RATE and
-                setup.risk_reward >= settings.MARKET_MIN_REWARD_RISK):
-            # is_public hasn't been touched yet and it's the first time this setup happens for this asset...
-            setup.is_public = True
-            setup.save()
-        elif setup.is_public is None:
-            # is_public hasn't been touched yet...
-            setup.is_public = False
-            setup.save()
+            elif total_count == 1:
+                # It's the first time this Setup happens for this asset
+                setup.is_public = True
+                setup.save()
+
+            else:
+                # Setup hasn't good probablities...
+                setup.is_public = False
+                setup.save()
 
     for [setup_id, data] in setups.items():
         asset_setup = str(symbol + '_' + setup_id)

@@ -621,7 +621,7 @@ class D_SetupSummaryList(generics.ListAPIView):
             dateFrom = str(datetime.today().date() - timedelta(days=90))
 
         setups = list(D_setup.objects
-                      .filter(Q(d_raw__asset_symbol__stockExchange__exact=stockExchange, is_public=True) |
+                      .filter(Q(d_raw__asset_symbol__stockExchange__exact=stockExchange, is_public=True),
                               Q(ended_on__isnull=True) | Q(started_on__gte=dateFrom))
                       .values_list('asset_setup', flat=True)
                       .distinct())
