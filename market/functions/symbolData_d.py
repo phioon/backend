@@ -744,18 +744,17 @@ def updateSetupSummary(symbol):
         # Determine if setup will be visible at this point of time
         if setup.is_public is None:
             # is_public hasn't been touched yet
+
             if (success_rate >= settings.MARKET_MIN_SUCCESS_RATE and
                     setup.risk_reward >= settings.MARKET_MIN_REWARD_RISK):
                 # Setup has good probability
-                if has_position_open:
+                if total_count == 1:
+                    # It's the first time this Setup happens for this asset
+                    setup.is_public = True
+                elif has_position_open:
                     setup.is_public = False
                 else:
                     setup.is_public = True
-                setup.save()
-
-            elif total_count == 1:
-                # It's the first time this Setup happens for this asset
-                setup.is_public = True
                 setup.save()
 
             else:
