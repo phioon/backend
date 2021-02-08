@@ -311,7 +311,7 @@ def D_SmaLatestList(request):
         'data': []
     }
 
-    if lastPeriods is None or lastPeriods <= 0 or lastPeriods >= 5:
+    if lastPeriods is None or lastPeriods <= 0 or lastPeriods >= 10:
         lastPeriods = 1
 
     dates = D_raw.objects.values('d_datetime').distinct().order_by('-d_datetime')
@@ -366,7 +366,7 @@ def D_EmaLatestList(request):
         'data': []
     }
 
-    if lastPeriods is None or lastPeriods <= 0 or lastPeriods >= 5:
+    if lastPeriods is None or lastPeriods <= 0 or lastPeriods >= 10:
         lastPeriods = 1
 
     dates = D_raw.objects.values('d_datetime').distinct().order_by('-d_datetime')
@@ -421,7 +421,7 @@ def D_QuoteLatestList(request):
         'data': []
     }
 
-    if lastPeriods is None or lastPeriods <= 0 or lastPeriods >= 5:
+    if lastPeriods is None or lastPeriods <= 0 or lastPeriods >= 10:
         lastPeriods = 1
 
     dates = D_raw.objects.values('d_datetime').distinct().order_by('-d_datetime')
@@ -494,7 +494,7 @@ def D_PhiboLatestList(request):
         'data': []
     }
 
-    if lastPeriods is None or lastPeriods <= 0 or lastPeriods >= 5:
+    if lastPeriods is None or lastPeriods <= 0 or lastPeriods >= 10:
         lastPeriods = 1
 
     dates = D_raw.objects.values('d_datetime').distinct().order_by('-d_datetime')
@@ -549,7 +549,7 @@ def D_RocLatestList(request):
         'data': []
     }
 
-    if lastPeriods is None or lastPeriods <= 0 or lastPeriods >= 5:
+    if lastPeriods is None or lastPeriods <= 0 or lastPeriods >= 10:
         lastPeriods = 1
 
     dates = D_raw.objects.values('d_datetime').distinct().order_by('-d_datetime')
