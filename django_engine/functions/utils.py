@@ -1,6 +1,7 @@
 from django.utils import encoding
 from operator import itemgetter
 from datetime import datetime
+import numpy as np
 import time
 import pytz
 import unicodedata
@@ -81,7 +82,58 @@ def order_by_desc(obj_list, field):
     return obj_list
 
 
+# raw data manager
+def get_ema_list(df, span):
+    df = df.ewm(span=span, adjust=False).mean()
+    df = df.fillna(0)
+    df[0:span] = None
+    df = df.round(2)
+
+    df = df.where(df.notnull(), None)
+
+    result = df.values.tolist()
+    return result
+
+
+def get_sma_list(df, span):
+    df = df.rolling(span).mean()
+    df = df.fillna(0)
+    df[0:span] = None
+    df = df.round(2)
+
+    df = df.where(df.notnull(), None)
+
+    result = df.values.tolist()
+    return result
+
+
+def get_roc_list(df, span):
+    df = df.where(df.notnull(), np.nan)
+    df = df.pct_change(periods=span)
+    df[0:span*2] = None
+
+    df = df.fillna(0)
+    df = df.round(4)
+    df = df.where(df.notnull(), None)
+
+    result = df.values.tolist()
+    return result
+
+
 # technical analysis
+def distance_percent(v1, v2):
+    distance = v1 - v2
+    distance = distance / v1
+
+    return abs(distance)
+
+
+def is_near(v1, v2, threshold):
+    distance = distance_percent(v1, v2)
+
+    return distance <= threshold
+
+
 def rate_of_change(v1, v2):
     delta = 0
     if v2 and v1:
@@ -132,123 +184,128 @@ def stop_loss_sell(max_price, stop_loss):
     return percentage(delta, max_price)
 
 
-def fibonacci_projection(type, highList, lowList, projection_percentage,
+def get_projection_pct(context, retracement_pct):
+    if context == 'long':
+        if retracement_pct >= 90:
+            return 1.5
+        elif retracement_pct >= 55:
+            return 0.98
+        else:
+            return 0.8
+    elif context == 'short':
+        if retracement_pct >= 90:
+            return 0.98
+        elif retracement_pct >= 55:
+            return 0.8
+        else:
+            return 0.61
+
+
+def fibonacci_projection(type, highs, lows, projection_percentage='auto',
                          min_periods_to_consider=17, inc_interval=4, max_periods_to_consider=72):
     # highList and lowList are ordered by ASCENDENT
     # So, the more recent data is in the last position
 
     p1 = p2 = p3 = None
-    fibo_projection = {}
+    fibonacci_obj = {}
 
-    lastIndex = len(highList) - 1
+    last_index = len(highs) - 1
     periods = min_periods_to_consider
 
-    keepLooking = True
-    high_today = highList[lastIndex]
-    low_today = lowList[lastIndex]
-    ini_highest = max(highList[lastIndex - periods:])
-    ini_lowest = min(lowList[lastIndex - periods:])
+    keep_looking = True
+    high_today = highs[last_index]
+    low_today = lows[last_index]
+    ini_highest = max(highs[last_index - periods:])
+    ini_lowest = min(lows[last_index - periods:])
 
-    while keepLooking:
-        highest = max(highList[lastIndex - periods:])
-        lowest = min(lowList[lastIndex - periods:])
+    while keep_looking:
+        highest = max(highs[last_index - periods:])
+        lowest = min(lows[last_index - periods:])
 
-        if type == 'buy':
-            # BUY
-            if p1 is None:
-                # It's the first loop run
-                p1 = lowest
-                periods += inc_interval
-                continue
+        if p1 is None:
+            # It's the first loop run
+            p1 = lowest
+            periods += inc_interval
+            continue
 
+        if type == 'long':
+            # LONG
             if (lowest < p1 or
                     lowest >= ini_lowest or
                     high_today >= ini_highest):
                 # lowest < p1:                  A new low has been found
                 # lowest >= ini_lowest:         Lowest value is still GTE to the first low found (17 periods)
-                # high_today <= ini_highest:    Today's high value is still LTE to the first high found (17 periods)
-                # LTE:                          Lesser Than or Equal
-                # GTE:                          Greater Than or Equal
+                # high_today >= ini_highest:    Today's high is still GTE to the first high found (17 periods)
 
                 p1 = lowest
                 periods += inc_interval
             else:
-                keepLooking = False
+                keep_looking = False
 
         else:
-            # SELL
-            if p1 is None:
-                # It's the first loop run
-                p1 = highest
-                periods += inc_interval
-                continue
-
+            # SHORT
             if (highest > p1 or
                     highest <= ini_highest or
                     low_today <= ini_lowest):
                 # highest > p1:                 A new high has been found
                 # highest <= ini_highest:       Highest value is still LTE to the first high found (17 periods)
-                # low_today <= ini_lowest:      Today's low value is still GTE to the first low found (17 periods)
-                # LTE:                          Lesser Than or Equal
-                # GTE:                          Greater Than or Equal
+                # low_today <= ini_lowest:      Today's low is still LTE to the first low found (17 periods)
 
                 p1 = highest
                 periods += inc_interval
             else:
-                keepLooking = False
+                keep_looking = False
 
         if periods >= max_periods_to_consider:
             # Try to draw projection based on up to 72 periods (default).
-            keepLooking = False
+            keep_looking = False
 
-    # Considering only positions after p1 (From p1 to lastIndex)
-    highList = highList[lastIndex - periods: lastIndex + 1]
-    lowList = lowList[lastIndex - periods: lastIndex + 1]
+    # Considering only positions after p1
+    highs = highs[last_index - periods:]
+    lows = lows[last_index - periods:]
 
     p2Index = None
 
-    if type == 'buy':
+    if type == 'long':
         # BUY
-        for x in range(len(highList)):
-            if p2 is None or highList[x] >= p2:
-                p2 = highList[x]
+        for x in range(len(highs)):
+            if p2 is None or highs[x] >= p2:
+                p2 = highs[x]
                 p2Index = x
 
-        p3 = min(lowList[p2Index:])
+        p3 = min(lows[p2Index:])
 
-        wave_1 = p2 - p1
-        retraction = p2 - p3
-        projection = round(p3 + (wave_1 * projection_percentage), 2)
+        first_wave = p2 - p1
+        retracement = p2 - p3
+        retracement_pct = percentage(retracement, first_wave, decimals=1)
+
+        if projection_percentage == 'auto':
+            projection_percentage = get_projection_pct(context=type, retracement_pct=retracement_pct)
+        projection = round(p3 + (first_wave * projection_percentage), 2)
     else:
         # SELL
-        for x in range(len(lowList)):
-            if p2 is None or lowList[x] <= p2:
-                p2 = lowList[x]
+        for x in range(len(lows)):
+            if p2 is None or lows[x] <= p2:
+                p2 = lows[x]
                 p2Index = x
 
-        p3 = max(highList[p2Index:])
+        p3 = max(highs[p2Index:])
 
-        wave_1 = p1 - p2
-        retraction = p3 - p2
-        projection = p3 - (wave_1 * projection_percentage)
+        first_wave = p1 - p2
+        retracement = p3 - p2
+        retracement_pct = percentage(retracement, first_wave, decimals=1)
 
-    fibo_projection['periods_needed'] = periods
-    fibo_projection['p1'] = round(p1, 2)
-    fibo_projection['p2'] = round(p2, 2)
-    fibo_projection['p3'] = round(p3, 2)
-    fibo_projection['wave_1'] = round(wave_1, 2)
-    fibo_projection['retraction'] = round(retraction, 2)
-    fibo_projection['pct_retraction'] = percentage(retraction, wave_1, decimals=1)
-    fibo_projection['projection'] = round(projection, 2)
+        if projection_percentage == 'auto':
+            projection_percentage = get_projection_pct(context=type, retracement_pct=retracement_pct)
+        projection = p3 - (first_wave * projection_percentage)
 
-    fibo_projection = review_fibo_projection(fibo_projection)
+    fibonacci_obj['periods_needed'] = periods
+    fibonacci_obj['p1'] = round(p1, 2)
+    fibonacci_obj['p2'] = round(p2, 2)
+    fibonacci_obj['p3'] = round(p3, 2)
+    fibonacci_obj['first_wave'] = round(first_wave, 2)
+    fibonacci_obj['retracement'] = round(retracement, 2)
+    fibonacci_obj['retracement_pct'] = percentage(retracement, first_wave, decimals=1)
+    fibonacci_obj['projection'] = round(projection, 2)
 
-    return fibo_projection
-
-
-def review_fibo_projection(fibo_projection):
-    if fibo_projection['projection'] <= 0:
-        # Don't let projection be lesser than 0.
-        fibo_projection['projection'] = 1.5
-
-    return fibo_projection
+    return fibonacci_obj

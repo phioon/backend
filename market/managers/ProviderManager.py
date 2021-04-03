@@ -1,6 +1,6 @@
 from django_engine import settings
-from .functions import utils as phioon_utils
-from . import providers
+from django_engine.functions import utils as phioon_utils
+from market import providers
 import inspect
 
 
@@ -36,7 +36,7 @@ class ProviderManager:
 
     def get_providers_by_context(self, context):
         if settings.PHIOON_AS_PROVIDER:
-            provider_list = self.phioon_as_provider[context]       # DEV
+            provider_list = self.phioon_as_provider[context]        # DEV
         else:
             provider_list = self.providers_by_context[context]      # PRD
         return provider_list
@@ -66,9 +66,9 @@ class ProviderManager:
         log.log_into_db(level=log_level, context=context, message=msg)
         return {}
 
-    def get_stock_exchange_data(self, se_short):
+    def get_stock_exchange_data(self, stock_exchange):
         for provider in self.get_providers_by_context('stock_exchange'):
-            result = provider.get_stock_exchange_data(se_short=se_short)
+            result = provider.get_stock_exchange_data(se_short=stock_exchange)
 
             if result['status'] == 200 and result['data']:
                 return result['data']
@@ -79,13 +79,13 @@ class ProviderManager:
 
         log_level = 'info'
         context = self.get_context()
-        msg = str('[%s] No providers could retrieve data.' % se_short)
+        msg = str('[%s] No providers could retrieve data.' % stock_exchange)
         log.log_into_db(level=log_level, context=context, message=msg)
         return {}
 
-    def get_assets_by_stock_exchange(self, se_short=None):
+    def get_assets_by_stock_exchange(self, stock_exchange=None):
         for provider in self.get_providers_by_context('assets_by_stock_exchange'):
-            result = provider.get_tickers_by_stock_exchange(se_short)
+            result = provider.get_tickers_by_stock_exchange(stock_exchange)
 
             if result['status'] == 200 and result['data']:
                 return result['data']
@@ -96,7 +96,7 @@ class ProviderManager:
 
         log_level = 'info'
         context = self.get_context()
-        msg = str('[%s] No providers could retrieve data.' % se_short)
+        msg = str('[%s] No providers could retrieve data.' % stock_exchange)
         log.log_into_db(level=log_level, context=context, message=msg)
         return {}
 
@@ -134,15 +134,15 @@ class ProviderManager:
         log.log_into_db(level=log_level, context=context, message=msg)
         return {}
 
-    def get_eod_data(self, asset_symbol, last_x_periods):
+    def get_eod_data(self, asset_symbol, last_periods):
         for provider in self.get_providers_by_context('eod'):
-            result = provider.get_eod_data(asset_symbol, last_x_periods)
+            result = provider.get_eod_data(asset_symbol, last_periods)
 
             if result['status'] == 200 and result['data']:
                 result['validated_data'] = self.validate_initial_data(asset_symbol,
                                                                       provider.id,
                                                                       result['data'],
-                                                                      last_x_periods)
+                                                                      last_periods)
                 return result['validated_data']
             else:
                 self.log_empty_data(asset_symbol, provider.id)
@@ -158,10 +158,10 @@ class ProviderManager:
         return {}
 
     # validators
-    def validate_initial_data(self, asset_symbol, provider_id, data, last_x_periods):
+    def validate_initial_data(self, asset_symbol, provider_id, data, last_periods):
         serializer = {
             'asset_symbol': asset_symbol,
-            'last_x_periods': last_x_periods,
+            'last_periods': last_periods,
             'initial_provider': provider_id,
             'initial_data': phioon_utils.order_by_asc(data, 'datetime'),
             'initial_inconsistencies': [],
@@ -170,14 +170,13 @@ class ProviderManager:
             'validated_data': []
         }
 
-        if last_x_periods > 0:
-            # last_x_periods equals to 0 means client is asking for a compact view.
-            serializer['initial_data'] = self.shrink_data(serializer['initial_data'], last_x_periods)
+        if last_periods > 0:
+            # last_periods greater than 0 means client is asking for a compact view.
+            serializer['initial_data'] = self.shrink_data(serializer['initial_data'], last_periods)
 
         serializer['initial_inconsistencies'] = self.get_eod_inconsistencies(serializer,
                                                                              provider_id,
                                                                              data_key='initial_data')
-
         # Join all inconsistent dates into a list
         inconsistent_dates = []
         for dates in serializer['initial_inconsistencies']['result'].values():
@@ -224,41 +223,45 @@ class ProviderManager:
     def standardize_eod_data(self, validated_data):
         # Once empty data is already removed by self.replace_inconsistencies_with_trusted_data,
         # we just need to standardize data before sending it to database.
+        _validated_data = []
         for data in validated_data:
-            data['open'] = round(data['open'] * data['adj_pct'], 2)
-            data['high'] = round(data['high'] * data['adj_pct'], 2)
-            data['low'] = round(data['low'] * data['adj_pct'], 2)
-            data['close'] = round(data['close'], 2)
-            data['volume'] = int(data['volume'])
+            if not phioon_utils.has_empty_fields(data):
+                data['open'] = round(data['open'] * data['adj_pct'], 2)
+                data['high'] = round(data['high'] * data['adj_pct'], 2)
+                data['low'] = round(data['low'] * data['adj_pct'], 2)
+                data['close'] = round(data['close'], 2)
+                data['volume'] = int(data['volume'])
 
-        return validated_data
+                _validated_data.append(data)
+
+        return _validated_data
 
     # general functions
-    def get_raw_data_from_db(self, asset_symbol, last_x_periods):
-        from market.models import D_raw
+    def get_eod_data_from_db(self, asset_symbol, last_periods):
+        from market.models_d import D_raw
 
         data = {}
-        d_raws = list(D_raw.objects.filter(asset_symbol=asset_symbol)
-                      .values_list('d_datetime', 'd_open', 'd_high', 'd_low', 'd_close', 'd_volume')
+        d_raws = list(D_raw.objects.filter(asset=asset_symbol)
+                      .values('d_datetime', 'd_open', 'd_high', 'd_low', 'd_close', 'd_volume')
                       .order_by('d_datetime'))
 
-        if last_x_periods > 0:
-            d_raws = self.shrink_data(d_raws, last_x_periods)
+        if last_periods > 0:
+            d_raws = self.shrink_data(d_raws, last_periods)
 
-        for values in d_raws:
-            data[values[0]] = {
-                    'datetime': values[0],
-                    'open': values[1],
-                    'high': values[2],
-                    'low': values[3],
-                    'close': values[4],
-                    'volume': values[5]
+        for eod in d_raws:
+            data[eod['d_datetime']] = {
+                    'datetime': eod['d_datetime'],
+                    'open': eod['d_open'],
+                    'high': eod['d_high'],
+                    'low': eod['d_low'],
+                    'close': eod['d_close'],
+                    'volume': eod['d_volume']
             }
 
         return data
 
-    def shrink_data(self, data, last_x_periods):
-        data = data[len(data) - last_x_periods:]
+    def shrink_data(self, data, last_periods):
+        data = data[len(data) - last_periods:]
         return data
 
     # EOD: lookup functions
@@ -270,14 +273,15 @@ class ProviderManager:
                 'roc_too_high': []
             }
         }
-        d_raws = self.get_raw_data_from_db(serializer['asset_symbol'], serializer['last_x_periods'])
+        d_raws = self.get_eod_data_from_db(serializer['asset_symbol'], serializer['last_periods'])
 
         # Using date as key...
         date_as_key = phioon_utils.get_field_as_unique_key(serializer[data_key], 'datetime')
 
         # Looking for empty fields...
-        inconsistencies['result']['empty_fields'] = self.get_dates_empty_fields(date_as_key)
-        inconsistencies['amount'] += len(inconsistencies['result']['empty_fields'])
+        # inconsistencies['result']['empty_fields'] = self.get_dates_empty_fields(date_as_key)
+        # inconsistencies['amount'] += len(inconsistencies['result']['empty_fields'])
+
         # Looking for discrepancy on Rate of Change (ROC) values...
         inconsistencies['result']['roc_too_high'] = self.get_dates_roc_too_high(date_as_key, d_raws)
         inconsistencies['amount'] += len(inconsistencies['result']['roc_too_high'])
@@ -305,8 +309,14 @@ class ProviderManager:
                 result.append(k)
             elif not v['close']:
                 result.append(k)
+            elif not v['volume']:
+                result.append(k)
 
         return result
+
+    def remove_empty_fields(self, raw_data):
+        pass
+
 
     def get_dates_roc_too_high(self, data, d_raws):
         result = []
@@ -323,19 +333,12 @@ class ProviderManager:
 
         for k, v in data.items():
             if k not in d_raws:
-                # open
                 if self.is_roc_too_high(yesterday, v, d_raws, pct_roc_threshold, 'open'):
                     result.append(k)
-
-                # high
                 elif self.is_roc_too_high(yesterday, v, d_raws, pct_roc_threshold, 'high'):
                     result.append(k)
-
-                # low
                 elif self.is_roc_too_high(yesterday, v, d_raws, pct_roc_threshold, 'low'):
                     result.append(k)
-
-                # close
                 elif self.is_roc_too_high(yesterday, v, d_raws, pct_roc_threshold, 'close'):
                     result.append(k)
 
@@ -380,7 +383,7 @@ class ProviderManager:
                 continue
             else:
                 # Initial provider is not the same as current trusted provider
-                result = provider.get_eod_data(serializer['asset_symbol'], serializer['last_x_periods'])
+                result = provider.get_eod_data(serializer['asset_symbol'], serializer['last_periods'])
 
                 if result['status'] == 200:
                     serializer['trusted_provider'] = provider.id

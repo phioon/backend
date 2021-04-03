@@ -2,7 +2,7 @@ import json
 import requests
 import inspect
 from django_engine import settings
-from market.functions import utils
+from django_engine.functions import utils
 
 
 # Utils

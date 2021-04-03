@@ -1,6 +1,6 @@
 from django.contrib.auth.models import User
-from . import models
-from .functions import utils as phioon_utils
+from market import models, models_d
+from django_engine.functions import utils as phioon_utils
 from rest_framework import serializers
 
 
@@ -15,28 +15,11 @@ class StockExchangeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.StockExchange
-        fields = ['se_short', 'se_name', 'se_startTime', 'se_endTime', 'se_timezone',
+        fields = ['se_short', 'se_name', 'start_time', 'end_time', 'timezone',
                   'country_code', 'currency_code', 'website', 'assets']
 
     def get_assets(self, obj):
-        return models.Asset.objects.filter(stockExchange=obj).values_list('pk', flat=True)
-
-
-# DEPRECATED
-class AssetBasicSerializer(serializers.ModelSerializer):
-    asset_label = serializers.ReadOnlyField(source='profile.asset_label')
-    asset_name = serializers.ReadOnlyField(source='profile.asset_name')
-
-    asset_lastTradeTime = serializers.ReadOnlyField(source='realtime.last_trade_time')
-    asset_high = serializers.ReadOnlyField(source='realtime.high')
-    asset_low = serializers.ReadOnlyField(source='realtime.low')
-    asset_price = serializers.ReadOnlyField(source='realtime.price')
-
-    class Meta:
-        model = models.Asset
-        fields = ['stockExchange', 'asset_symbol',
-                  'asset_label', 'asset_name',
-                  'asset_lastTradeTime', 'asset_high', 'asset_low', 'asset_price']
+        return obj.assets.values_list('pk', flat=True)
 
 
 class AssetDetailSerializer(serializers.ModelSerializer):
@@ -55,7 +38,7 @@ class AssetDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.Asset
-        fields = ['stockExchange', 'asset_symbol',
+        fields = ['stock_exchange', 'asset_symbol',
                   'asset_label', 'asset_name', 'country_code', 'sector_id',
                   'last_trade_time', 'open', 'high', 'low', 'price', 'avg_volume_10d', 'pct_change']
 
@@ -68,9 +51,9 @@ class AssetDetailSerializer(serializers.ModelSerializer):
         else:
             # There is no Realtime instance OR it's older than d_datetime
             d_datetime = str(d_datetime)[0:10]
-            last_trade_time = d_datetime + ' ' + str(obj.stockExchange.se_endTime)
+            last_trade_time = d_datetime + ' ' + str(obj.stock_exchange.end_time)
             last_trade_time = phioon_utils.convert_naive_to_utc(strDatetime=last_trade_time,
-                                                                tz=obj.stockExchange.se_timezone)
+                                                                tz=obj.stock_exchange.timezone)
             last_trade_time = last_trade_time.strftime("%Y-%m-%d %H:%M:%S")
 
         return last_trade_time
@@ -124,48 +107,51 @@ class AssetDetailSerializer(serializers.ModelSerializer):
         return price
 
 
-class D_rawBasicSerializer(serializers.ModelSerializer):
+class D_quoteBasicSerializer(serializers.ModelSerializer):
     class Meta:
-        model = models.D_raw
+        model = models_d.D_raw
         fields = ['asset_symbol', 'd_datetime', 'd_close']
 
 
-class D_rawDetailSerializer(serializers.ModelSerializer):
+class D_quoteDetailSerializer(serializers.ModelSerializer):
     class Meta:
-        model = models.D_raw
+        model = models_d.D_raw
         fields = ['asset_symbol', 'd_datetime', 'd_open', 'd_high', 'd_low', 'd_close', 'd_volume']
 
 
 class D_pvpcSerializer(serializers.ModelSerializer):
-    asset_symbol = serializers.ReadOnlyField(source='d_raw.asset_symbol.asset_symbol')
+    asset_symbol = serializers.ReadOnlyField(source='d_raw.asset.asset_symbol')
     d_datetime = serializers.ReadOnlyField(source='d_raw.d_datetime')
 
     class Meta:
-        model = models.D_pvpc
+        model = models_d.D_pvpc
         fields = ['asset_symbol', 'd_datetime',
                   'd_pv72', 'd_pv305', 'd_pv1292',
                   'd_pc72', 'd_pc305', 'd_pc1292']
 
 
-class D_setupSerializer(serializers.ModelSerializer):
-    se_short = serializers.ReadOnlyField(source='d_raw.asset_symbol.stockExchange.se_short')
-    asset_symbol = serializers.ReadOnlyField(source='d_raw.asset_symbol_id')
-    asset_label = serializers.ReadOnlyField(source='d_raw.asset_symbol.profile.asset_label')
+class D_phiOperationSerializer(serializers.ModelSerializer):
+    se_short = serializers.ReadOnlyField(source='d_raw.asset.stock_exchange.se_short')
+    asset_symbol = serializers.ReadOnlyField(source='d_raw.asset.asset_symbol')
+    asset_label = serializers.ReadOnlyField(source='d_raw.asset.profile.asset_label')
     tc_id = serializers.ReadOnlyField(source='tc.id')
 
     class Meta:
-        model = models.D_setup
-        fields = ['id', 'se_short', 'asset_setup', 'asset_symbol', 'asset_label',
-                  'started_on', 'ended_on', 'is_success', 'duration', 'tc_id',
-                  'max_price', 'target', 'stop_loss', 'gain_percent', 'loss_percent', 'risk_reward',
-                  'fibo_pct_retraction']
+        model = models_d.D_phiOperation
+        fields = ['id', 'se_short', 'asset_symbol', 'asset_label', 'tc_id',
+                  'status', 'radar_on', 'started_on', 'ended_on', 'duration',
+                  'entry_price', 'target', 'stop_loss', 'gain_percent', 'loss_percent', 'risk_reward',
+                  'fibonacci']
 
 
-class D_setupSummarySerializer(serializers.ModelSerializer):
+class D_phiStatsSerializer(serializers.ModelSerializer):
+    asset_symbol = serializers.ReadOnlyField(source='asset.asset_symbol')
+    tc_id = serializers.ReadOnlyField(source='tc.id')
+
     class Meta:
-        model = models.D_setupSummary
-        fields = ['asset_setup', 'asset_symbol', 'tc_id',
-                  'success_rate', 'avg_duration_gain', 'occurrencies',
+        model = models_d.D_phiStats
+        fields = ['asset_symbol', 'tc_id', 'occurrencies',
+                  'success_rate', 'avg_duration_gain',
                   'last_ended_occurrence', 'last_ended_duration', 'last_was_success']
 
 

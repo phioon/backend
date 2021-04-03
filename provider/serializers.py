@@ -26,7 +26,7 @@ class TickersByExchangeSerializer(serializers.ModelSerializer):
         fields = ['exchange', 'tickers']
 
     def get_tickers(self, obj):
-        return market_models.Asset.objects.filter(stockExchange=obj) \
+        return market_models.Asset.objects.filter(stock_exchange=obj) \
             .exclude(profile__asset_name=None) \
             .annotate(symbol=F('pk'),
                       name=F('profile__asset_name')) \
@@ -57,7 +57,7 @@ class EodSerializer(serializers.ModelSerializer):
         fields = ['asset_symbol', 'asset_name', 'stock_exchange', 'eod']
 
     def get_stock_exchange(self, obj):
-        return market_models.StockExchange.objects.filter(pk=obj.stockExchange) \
+        return market_models.StockExchange.objects.filter(pk=obj.stock_exchange) \
             .annotate(symbol=F('pk'),
                       name=F('se_name'),
                       timezone=F('se_timezone')) \
@@ -79,7 +79,7 @@ class EodSerializer(serializers.ModelSerializer):
             limit = default_limit
 
         result = market_models.D_raw.objects.filter(asset_symbol=obj) \
-            .annotate(stock_exchange=F('asset_symbol__stockExchange'),
+            .annotate(stock_exchange=F('asset_symbol__stock_exchange'),
                       date=F('d_datetime'),
                       open=F('d_open'),
                       high=F('d_high'),
