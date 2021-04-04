@@ -30,7 +30,7 @@ class D_RawList(generics.ListAPIView):
         if dateTo is None:
             dateTo = str(datetime.today().date())
 
-        return models_d.D_raw.objects.filter(asset_symbol=asset,
+        return models_d.D_raw.objects.filter(asset=asset,
                                              d_datetime__gte=dateFrom,
                                              d_datetime__lte=dateTo + ' 23:59:59')
 
@@ -52,7 +52,7 @@ def d_sma_latest_list(request):
         last_periods = 1
 
     dates = models_d.D_raw.objects.values('d_datetime').distinct().order_by('-d_datetime')
-    dateFrom = dates[last_periods - 1]['d_datetime']
+    date_from = dates[last_periods - 1]['d_datetime']
     result['latest_datetime'] = dates[0]['d_datetime']
 
     # Define which assets are selected
@@ -64,7 +64,7 @@ def d_sma_latest_list(request):
 
     # Append data into result
     for asset in assets:
-        objs = list(models_d.D_sma.objects.filter(d_raw__asset=asset, d_raw__d_datetime__gte=dateFrom)
+        objs = list(models_d.D_sma.objects.filter(d_raw__asset=asset, d_raw__d_datetime__gte=date_from)
                     .order_by('-asset_datetime'))
 
         if len(objs) != last_periods:
@@ -107,7 +107,7 @@ def d_ema_latest_list(request):
         last_periods = 1
 
     dates = models_d.D_raw.objects.values('d_datetime').distinct().order_by('-d_datetime')
-    dateFrom = dates[last_periods - 1]['d_datetime']
+    date_from = dates[last_periods - 1]['d_datetime']
     result['latest_datetime'] = dates[0]['d_datetime']
 
     # Define which assets are selected
@@ -119,7 +119,7 @@ def d_ema_latest_list(request):
 
     # Append data into result
     for asset in assets:
-        objs = list(models_d.D_ema.objects.filter(d_raw__asset=asset, d_raw__d_datetime__gte=dateFrom)
+        objs = list(models_d.D_ema.objects.filter(d_raw__asset=asset, d_raw__d_datetime__gte=date_from)
                     .order_by('-asset_datetime'))
 
         if len(objs) != last_periods:
@@ -162,7 +162,7 @@ def d_quote_latest_list(request):
         last_periods = 1
 
     dates = models_d.D_raw.objects.values('d_datetime').distinct().order_by('-d_datetime')
-    dateFrom = dates[last_periods - 1]['d_datetime']
+    date_from = dates[last_periods - 1]['d_datetime']
     result['latest_datetime'] = dates[0]['d_datetime']
 
     # Define which assets are selected
@@ -174,7 +174,7 @@ def d_quote_latest_list(request):
 
     # Append data into result
     for asset in assets:
-        raw_objs = list(models_d.D_raw.objects.filter(asset=asset, d_datetime__gte=dateFrom)
+        raw_objs = list(models_d.D_raw.objects.filter(asset=asset, d_datetime__gte=date_from)
                         .order_by('-asset_datetime'))
         raw_objs = json.loads(django_serializers.serialize('json', raw_objs))
 
@@ -235,7 +235,7 @@ def d_phibo_latest_list(request):
         last_periods = 1
 
     dates = models_d.D_raw.objects.values('d_datetime').distinct().order_by('-d_datetime')
-    dateFrom = dates[last_periods - 1]['d_datetime']
+    date_from = dates[last_periods - 1]['d_datetime']
     result['latest_datetime'] = dates[0]['d_datetime']
 
     # Define which assets are selected
@@ -247,7 +247,7 @@ def d_phibo_latest_list(request):
 
     # Append data into result
     for asset in assets:
-        objs = list(models_d.D_pvpc.objects.filter(d_raw__asset=asset, d_raw__d_datetime__gte=dateFrom)
+        objs = list(models_d.D_pvpc.objects.filter(d_raw__asset=asset, d_raw__d_datetime__gte=date_from)
                     .order_by('-asset_datetime'))
 
         if len(objs) != last_periods:
@@ -290,7 +290,7 @@ def d_roc_latest_list(request):
         last_periods = 1
 
     dates = models_d.D_raw.objects.values('d_datetime').distinct().order_by('-d_datetime')
-    dateFrom = dates[last_periods - 1]['d_datetime']
+    date_from = dates[last_periods - 1]['d_datetime']
     result['latest_datetime'] = dates[0]['d_datetime']
 
     # Define which assets are selected
@@ -302,7 +302,7 @@ def d_roc_latest_list(request):
 
     # Append data into result
     for asset in assets:
-        objs = list(models_d.D_roc.objects.filter(d_raw__asset=asset, d_raw__d_datetime__gte=dateFrom)
+        objs = list(models_d.D_roc.objects.filter(d_raw__asset=asset, d_raw__d_datetime__gte=date_from)
                     .order_by('-asset_datetime'))
 
         if len(objs) != last_periods:

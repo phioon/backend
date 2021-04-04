@@ -200,12 +200,12 @@ class Phioon:
         for obj in rdata:
             data.append({
                 'se_short': str(obj['symbol']),
-                'se_name': str(obj['name']),
+                'name': str(obj['name']),
                 'country_code': str(obj['country_code']),
                 'currency_code': str(obj['currency_code']),
-                'se_timezone': str(obj['timezone']),
-                'se_startTime': str(obj['market_start_time']),
-                'se_endTime': str(obj['market_end_time']),
+                'timezone': str(obj['timezone']),
+                'start_time': str(obj['market_start_time']),
+                'end_time': str(obj['market_end_time']),
                 'website': str(obj['website'])
             })
 
@@ -215,12 +215,12 @@ class Phioon:
         # Prepares data to be recognized as table's fields.
         data = {
             'se_short': str(rdata['symbol']),
-            'se_name': str(rdata['name']),
+            'name': str(rdata['name']),
             'country_code': str(rdata['country_code']),
             'currency_code': str(rdata['currency_code']),
-            'se_timezone': str(rdata['timezone']),
-            'se_startTime': str(rdata['market_start_time']),
-            'se_endTime': str(rdata['market_end_time']),
+            'timezone': str(rdata['timezone']),
+            'start_time': str(rdata['market_start_time']),
+            'end_time': str(rdata['market_end_time']),
             'website': str(rdata['website'])
         }
 
@@ -641,8 +641,8 @@ class MarketStack:
         for obj in rdata:
             data.append({
                 'se_short': self.get_se_short(obj['mic']),
-                'se_name': self.get_se_name(obj['name']),
-                'se_timezone': str(obj['timezone']['timezone']),
+                'name': self.get_se_name(obj['name']),
+                'timezone': str(obj['timezone']['timezone']),
                 'country_code': str(obj['country_code']),
                 'currency_code': str(obj['currency']['code']),
                 'website': str(obj['website']),
@@ -654,8 +654,8 @@ class MarketStack:
         # Prepares data to be recognized as table's fields.
         data = {
             'se_short': self.get_se_short(rdata['mic']),
-            'se_name': self.get_se_name(rdata['name']),
-            'se_timezone': str(rdata['timezone']['timezone']),
+            'name': self.get_se_name(rdata['name']),
+            'timezone': str(rdata['timezone']['timezone']),
             'country_code': str(rdata['country_code']),
             'currency_code': str(rdata['currency']['code']),
             'website': str(rdata['website']),

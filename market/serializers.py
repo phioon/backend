@@ -15,7 +15,7 @@ class StockExchangeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.StockExchange
-        fields = ['se_short', 'se_name', 'start_time', 'end_time', 'timezone',
+        fields = ['se_short', 'name', 'start_time', 'end_time', 'timezone',
                   'country_code', 'currency_code', 'website', 'assets']
 
     def get_assets(self, obj):

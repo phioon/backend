@@ -527,7 +527,7 @@ class StockExchange(models.Model):
     modified_time = models.DateField(auto_now=True)
 
     se_short = models.CharField(max_length=32, verbose_name='Stock Exchange Symbol', primary_key=True)
-    se_name = models.CharField(max_length=128, verbose_name='Stock Exchange Name', db_index=True)
+    name = models.CharField(max_length=128, verbose_name='Stock Exchange Name', db_index=True)
 
     start_time = models.TimeField(default='10:00:00', verbose_name='Usual time the market starts')
     end_time = models.TimeField(default='18:00:00', verbose_name='Usual time the market ends')
@@ -552,15 +552,15 @@ class StockExchange(models.Model):
             except StockExchange.DoesNotExist:
                 stock_exchange = StockExchange(pk=se_short)
 
-            stock_exchange.se_name = data['se_name']
+            stock_exchange.name = data['name']
             stock_exchange.country_code = data['country_code']
             stock_exchange.currency_code = data['currency_code']
-            stock_exchange.timezone = data['se_timezone']
+            stock_exchange.timezone = data['timezone']
             stock_exchange.website = data['website']
-            if 'se_startTime' in data:
-                stock_exchange.start_time = data['se_startTime']
-            if 'se_endTime' in data:
-                stock_exchange.end_time = data['se_endTime']
+            if 'start_time' in data:
+                stock_exchange.start_time = data['start_time']
+            if 'end_time' in data:
+                stock_exchange.end_time = data['end_time']
 
             stock_exchange.save()
 

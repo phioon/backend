@@ -184,8 +184,8 @@ class RawDataManager:
             models.StockExchange.objects.update_or_create(
                 se_short=se_short,
                 defaults={
-                    'se_name': obj['se_name'],
-                    'se_timezone': obj['se_timezone'],
+                    'name': obj['name'],
+                    'timezone': obj['timezone'],
                     'country_code': obj['country_code'],
                     'currency_code': obj['currency_code'],
                     'website': obj['website']

@@ -1,15 +1,16 @@
 from django.db.models import F
 from market import models as market_models
+from market import models_d as market_models_d
 from rest_framework import serializers
 from . import messages
 
 
 class ExchangeSerializer(serializers.ModelSerializer):
     symbol = serializers.ReadOnlyField(source='se_short')
-    name = serializers.ReadOnlyField(source='se_name')
-    timezone = serializers.ReadOnlyField(source='se_timezone')
-    market_start_time = serializers.ReadOnlyField(source='se_startTime')
-    market_end_time = serializers.ReadOnlyField(source='se_endTime')
+    name = serializers.ReadOnlyField(source='name')
+    timezone = serializers.ReadOnlyField(source='timezone')
+    market_start_time = serializers.ReadOnlyField(source='start_time')
+    market_end_time = serializers.ReadOnlyField(source='end_time')
 
     class Meta:
         model = market_models.StockExchange
@@ -58,9 +59,7 @@ class EodSerializer(serializers.ModelSerializer):
 
     def get_stock_exchange(self, obj):
         return market_models.StockExchange.objects.filter(pk=obj.stock_exchange) \
-            .annotate(symbol=F('pk'),
-                      name=F('se_name'),
-                      timezone=F('se_timezone')) \
+            .annotate(symbol=F('pk')) \
             .values('symbol', 'name', 'timezone', 'country_code', 'currency_code')
 
     def get_eod(self, obj):
@@ -78,8 +77,8 @@ class EodSerializer(serializers.ModelSerializer):
             # Limit not specified
             limit = default_limit
 
-        result = market_models.D_raw.objects.filter(asset_symbol=obj) \
-            .annotate(stock_exchange=F('asset_symbol__stock_exchange'),
+        result = market_models_d.D_raw.objects.filter(asset=obj) \
+            .annotate(stock_exchange=F('asset__stock_exchange'),
                       date=F('d_datetime'),
                       open=F('d_open'),
                       high=F('d_high'),
@@ -87,7 +86,7 @@ class EodSerializer(serializers.ModelSerializer):
                       close=F('d_close'),
                       adj_close=F('d_close'),
                       volume=F('d_volume'),) \
-            .values('stock_exchange', 'asset_symbol', 'date', 'open', 'high', 'low', 'close', 'adj_close', 'volume') \
+            .values('stock_exchange', 'asset', 'date', 'open', 'high', 'low', 'close', 'adj_close', 'volume') \
             .order_by('-date')
 
         if limit > 0:

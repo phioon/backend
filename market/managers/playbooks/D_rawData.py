@@ -38,6 +38,7 @@ class D_rawData(RawData):
         # 1.  Raw Data
         if not only_offline:
             self.run_raw()
+            self.update_volume_avg()
         self.prepare_cache_raw()
 
         # 2.  Phibo PVPC
@@ -109,10 +110,14 @@ class D_rawData(RawData):
                                        d_close=item['close'],
                                        d_volume=item['volume']))
 
+        # 3. Send to DB
         if self.last_periods > 0:
             models_d.D_raw.bulk_update_or_create(objs[:self.last_periods])  # Descending
         else:
             models_d.D_raw.bulk_create(objs)
+
+    def update_volume_avg(self):
+        self.asset.update_volume_avg()
 
     def prepare_cache_raw(self):
         mod = 'raw'

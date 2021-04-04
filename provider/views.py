@@ -20,7 +20,7 @@ class ExchangeDetail(generics.RetrieveAPIView):
 
         if api_key == settings.API_KEY:
             serializer = self.get_serializer(self.get_queryset())
-            obj_res = {'data': serializer.cache}
+            obj_res = {'data': serializer.data}
             return Response(obj_res)
         else:
             obj_res = {'message': messages.get_message('enUS', 'generic', 'invalid_api_key')}
@@ -37,7 +37,7 @@ class ExchangeList(generics.ListAPIView):
 
         if api_key == settings.API_KEY:
             serializer = self.get_serializer(self.get_queryset(), many=True)
-            obj_res = {'data': serializer.cache}
+            obj_res = {'data': serializer.data}
             return Response(obj_res)
         else:
             obj_res = {'message': messages.get_message('enUS', 'generic', 'invalid_api_key')}
@@ -59,7 +59,7 @@ class TickersByExchange(generics.RetrieveAPIView):
             queryset = self.get_queryset()
             serializer = self.get_serializer(queryset)
 
-            obj_res = {'data': serializer.cache}
+            obj_res = {'data': serializer.data}
             return Response(obj_res)
         else:
             obj_res = {'message': messages.get_message('enUS', 'generic', 'invalid_api_key')}
@@ -81,7 +81,7 @@ class AssetProfileDetail(generics.RetrieveAPIView):
             queryset = self.get_queryset()
             serializer = self.get_serializer(queryset)
 
-            obj_res = {'data': serializer.cache}
+            obj_res = {'data': serializer.data}
             return Response(obj_res)
         else:
             obj_res = {'message': messages.get_message('enUS', 'generic', 'invalid_api_key')}
@@ -103,7 +103,7 @@ class AssetRealtimeDetail(generics.RetrieveAPIView):
             queryset = self.get_queryset()
             serializer = self.get_serializer(queryset)
 
-            obj_res = {'data': serializer.cache}
+            obj_res = {'data': serializer.data}
             return Response(obj_res)
         else:
             obj_res = {'message': messages.get_message('enUS', 'generic', 'invalid_api_key')}
@@ -125,7 +125,7 @@ class EodList(generics.RetrieveAPIView):
             queryset = self.get_queryset()
             serializer = self.get_serializer(queryset)
 
-            obj_res = {'data': serializer.cache}
+            obj_res = {'data': serializer.data}
             return Response(obj_res)
         else:
             obj_res = {'message': messages.get_message('enUS', 'generic', 'invalid_api_key')}
