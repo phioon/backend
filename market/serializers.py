@@ -107,27 +107,20 @@ class AssetDetailSerializer(serializers.ModelSerializer):
         return price
 
 
-class D_quoteBasicSerializer(serializers.ModelSerializer):
+class D_rawBasicSerializer(serializers.ModelSerializer):
+    asset_symbol = serializers.ReadOnlyField(source='asset.asset_symbol')
+
     class Meta:
         model = models_d.D_raw
         fields = ['asset_symbol', 'd_datetime', 'd_close']
 
 
-class D_quoteDetailSerializer(serializers.ModelSerializer):
+class D_rawDetailSerializer(serializers.ModelSerializer):
+    asset_symbol = serializers.ReadOnlyField(source='asset.asset_symbol')
+
     class Meta:
         model = models_d.D_raw
         fields = ['asset_symbol', 'd_datetime', 'd_open', 'd_high', 'd_low', 'd_close', 'd_volume']
-
-
-class D_pvpcSerializer(serializers.ModelSerializer):
-    asset_symbol = serializers.ReadOnlyField(source='d_raw.asset.asset_symbol')
-    d_datetime = serializers.ReadOnlyField(source='d_raw.d_datetime')
-
-    class Meta:
-        model = models_d.D_pvpc
-        fields = ['asset_symbol', 'd_datetime',
-                  'd_pv72', 'd_pv305', 'd_pv1292',
-                  'd_pc72', 'd_pc305', 'd_pc1292']
 
 
 class D_phiOperationSerializer(serializers.ModelSerializer):

@@ -16,9 +16,9 @@ class D_RawList(generics.ListAPIView):
     def get_serializer_class(self):
         detailed = str(self.request.query_params.get('detailed')).lower()
         if detailed == 'true':
-            return serializers.D_quoteDetailSerializer
+            return serializers.D_rawDetailSerializer
         else:
-            return serializers.D_quoteBasicSerializer
+            return serializers.D_rawBasicSerializer
 
     def get_queryset(self):
         asset = self.request.query_params.get('asset')
