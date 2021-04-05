@@ -540,30 +540,6 @@ class StockExchange(models.Model):
     def __str__(self):
         return self.se_short
 
-    # On-Demand
-    def update_stock_exchange_data(self, se_short):
-        provider_manager = ProviderManager()
-        data = provider_manager.get_stock_exchange_data(stock_exchange=se_short)
-
-        if data:
-
-            try:
-                stock_exchange = StockExchange.objects.get(pk=se_short)
-            except StockExchange.DoesNotExist:
-                stock_exchange = StockExchange(pk=se_short)
-
-            stock_exchange.name = data['name']
-            stock_exchange.country_code = data['country_code']
-            stock_exchange.currency_code = data['currency_code']
-            stock_exchange.timezone = data['timezone']
-            stock_exchange.website = data['website']
-            if 'start_time' in data:
-                stock_exchange.start_time = data['start_time']
-            if 'end_time' in data:
-                stock_exchange.end_time = data['end_time']
-
-            stock_exchange.save()
-
 
 class Asset(models.Model):
     created_time = models.DateField(auto_now_add=True)
@@ -617,7 +593,7 @@ class Asset(models.Model):
             profile.save()
 
     # D_Raw.update_asset calls it every day
-    def update_stats(self, last_periods):
+    def update_stats(self, last_periods=10):
         self.update_volume_avg()
         last_periods = self.run_check_list(last_periods)
 
@@ -641,17 +617,18 @@ class Asset(models.Model):
     def run_check_list(self, last_periods):
         is_considered_for_analysis = self.is_considered_for_analysis
 
-        if hasattr(self, 'profile') and self.stock_exchange.country_code == self.profile.country_code:
-            if self.asset_volume_avg >= 100000:
-                is_considered_for_analysis = True
+        if hasattr(self, 'profile'):
+            if self.stock_exchange.country_code == self.profile.country_code:
+                if self.asset_volume_avg >= 100000:
+                    is_considered_for_analysis = True
+                else:
+                    is_considered_for_analysis = False
             else:
-                is_considered_for_analysis = False
-        else:
-            # It doesn't have a Profile or it's a foreign asset
-            if self.asset_volume_avg >= 10000:
-                is_considered_for_analysis = True
-            else:
-                is_considered_for_analysis = False
+                # It's a foreign asset
+                if self.asset_volume_avg >= 10000:
+                    is_considered_for_analysis = True
+                else:
+                    is_considered_for_analysis = False
 
         if self.is_considered_for_analysis != is_considered_for_analysis:
             self.is_considered_for_analysis = is_considered_for_analysis
@@ -664,11 +641,6 @@ class Asset(models.Model):
                 last_periods = 10000
 
         return last_periods
-
-    def updateOrCreateObj(self, obj):
-        if obj.asset_volume_avg is not None:
-            Asset.objects.update_or_create(asset_symbol=obj.asset_symbol,
-                                           defaults={'asset_volume_avg': obj.asset_volume_avg})
 
 
 class Profile(models.Model):

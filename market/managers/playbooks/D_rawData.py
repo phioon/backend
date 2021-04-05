@@ -25,11 +25,11 @@ class D_rawData(RawData):
         self.prepare_last_periods()
 
     def prepare_last_periods(self):
-        self.last_periods = self.asset.update_stats(last_periods=self.last_periods)
+        self.last_periods = self.asset.run_check_list(last_periods=self.last_periods)
 
         if self.last_periods < 10:
             rows_count = self.asset.draws.count()
-            if rows_count <= 10:
+            if rows_count <= 50:
                 # Situation 1: Asset is pretty new (company just launched their IPO)
                 # Situation 2: Asset hasn't been synced yet
                 self.last_periods = 10000
@@ -38,7 +38,7 @@ class D_rawData(RawData):
         # 1.  Raw Data
         if not only_offline:
             self.run_raw()
-            self.update_volume_avg()
+            self.asset.update_stats()
         self.prepare_cache_raw()
 
         # 2.  Phibo PVPC
@@ -116,7 +116,7 @@ class D_rawData(RawData):
         else:
             models_d.D_raw.bulk_create(objs)
 
-    def update_volume_avg(self):
+        # 4. Updating Average Volume
         self.asset.update_volume_avg()
 
     def prepare_cache_raw(self):
@@ -187,7 +187,7 @@ class D_rawData(RawData):
         self.cache[mod]['df'] = pd.DataFrame(data=models_d.D_pvpc.objects.filter(d_raw__asset=self.asset).values())
 
         # Ignoring extra fields...
-        self.cache[mod]['df'] = self.cache[mod]['df'].drop(columns=['id', 'd_raw_id'])
+        self.cache[mod]['df'] = self.cache[mod]['df'].drop(columns=['id', 'd_raw_id'], errors='ignore')
         self.cache[mod]['df'].replace({np.nan: None}, inplace=True)
 
     # 3.  Moving Averages
@@ -239,7 +239,7 @@ class D_rawData(RawData):
         self.cache[mod]['df'] = pd.DataFrame(data=models_d.D_ema.objects.filter(d_raw__asset=self.asset).values())
 
         # Ignoring extra fields...
-        self.cache[mod]['df'] = self.cache[mod]['df'].drop(columns=['id', 'd_raw_id'])
+        self.cache[mod]['df'] = self.cache[mod]['df'].drop(columns=['id', 'd_raw_id'], errors='ignore')
         self.cache[mod]['df'].replace({np.nan: None}, inplace=True)
 
     # 3.2 SMA
@@ -290,7 +290,7 @@ class D_rawData(RawData):
         self.cache[mod]['df'] = pd.DataFrame(data=models_d.D_sma.objects.filter(d_raw__asset=self.asset).values())
 
         # Ignoring extra fields...
-        self.cache[mod]['df'] = self.cache[mod]['df'].drop(columns=['id', 'd_raw_id'])
+        self.cache[mod]['df'] = self.cache[mod]['df'].drop(columns=['id', 'd_raw_id'], errors='ignore')
         self.cache[mod]['df'].replace({np.nan: None}, inplace=True)
 
     # 4. Rate of Change (ROC)
@@ -430,7 +430,7 @@ class D_rawData(RawData):
         self.cache[mod]['df'] = pd.DataFrame(data=models_d.D_var.objects.filter(d_raw__asset=self.asset).values())
 
         # Ignoring extra fields...
-        self.cache[mod]['df'] = self.cache[mod]['df'].drop(columns=['id', 'd_raw_id'])
+        self.cache[mod]['df'] = self.cache[mod]['df'].drop(columns=['id', 'd_raw_id'], errors='ignore')
         self.cache[mod]['df'].replace({np.nan: None}, inplace=True)
 
     # 6. Technical Conditions
@@ -601,7 +601,7 @@ class D_rawData(RawData):
         self.cache[mod]['df'] = pd.DataFrame(data=models_d.D_tc.objects.filter(d_raw__asset=self.asset).values())
 
         # Ignoring extra fields...
-        self.cache[mod]['df'] = self.cache[mod]['df'].drop(columns=['id', 'd_raw_id'])
+        self.cache[mod]['df'] = self.cache[mod]['df'].drop(columns=['id', 'd_raw_id'], errors='ignore')
         self.cache[mod]['df'].replace({np.nan: None}, inplace=True)
 
     # 7. Phi Trader: Setups and Stats
@@ -631,7 +631,10 @@ class D_rawData(RawData):
         # There is no need to apply .iloc to [tc_df]
         mod = 'tc'
         order_by = ['asset_datetime']
-        tc_df = self.cache[mod]['df'].sort_values(by=order_by, ascending=ascending, ignore_index=True)
+        tc_df = self.cache[mod]['df']
+        if order_by[0] in tc_df.columns:
+            # When asset has just few d_raw entries, TC could be empty.
+            tc_df.sort_values(by=order_by, ascending=ascending, ignore_index=True, inplace=True)
 
         # 2. Calculations
         objs = []

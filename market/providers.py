@@ -814,7 +814,7 @@ class Yahoo:
         result['rdata'] = request_get_data(request, headers)
 
         if 'chart' in result['rdata'] and \
-                'result' in result['rdata']['chart'] and \
+                result['rdata']['chart']['result'] and \
                 len(result['rdata']['chart']['result']) > 0:
             result['status'] = 200
             result['data'] = self.prepare_eod_data(result['rdata']['chart']['result'][0])
