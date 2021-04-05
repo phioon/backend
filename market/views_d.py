@@ -337,11 +337,11 @@ class D_SetupList(generics.ListAPIView):
         date_from = self.request.query_params.get('dateFrom')
 
         if date_from is None:
-            date_from = str(datetime.today().date() - timedelta(days=90))
+            date_from = str(datetime.today().date() - timedelta(days=45))
 
         setups = models_d.D_phiOperation.objects.filter(
             Q(d_raw__asset__stock_exchange__exact=stock_exchange, is_public=True),
-            Q(ended_on__isnull=True) | Q(started_on__gte=date_from))
+            Q(ended_on__isnull=True) | Q(radar_on__gte=date_from))
 
         return setups
 
@@ -359,7 +359,7 @@ class D_SetupStatsList(generics.ListAPIView):
 
         phi_operations = models_d.D_phiOperation.objects\
             .filter(Q(d_raw__asset__stock_exchange__exact=stock_exchange, is_public=True),
-                    Q(ended_on__isnull=True) | Q(started_on__gte=date_from))\
+                    Q(ended_on__isnull=True) | Q(radar_on__gte=date_from))\
             .values('tc_id', 'asset_id')\
             .distinct()
 
