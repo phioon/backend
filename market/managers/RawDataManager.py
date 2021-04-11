@@ -14,11 +14,14 @@ import pytz
 
 class RawDataManager:
     task_urls = {
-        'profile': settings.MARKET_API_BASE + 'task/update_profile/asset/',
+        'profile': settings.MARKET_API_BASE + 'task/update_profile/asset/<asset_symbol>/<api_key>/',
+        'raw': settings.MARKET_API_BASE + 'task/run_raw/<interval>/asset/<asset_symbol>/<last_periods>/<api_key>/',
+        'raw_offline': settings.MARKET_API_BASE + 'task/offline/run_raw/<interval>/asset/<asset_symbol>/<api_key>/',
+        'setup_offline': settings.MARKET_API_BASE + 'task/offline/run_setup/<interval>/asset/<asset_symbol>/<api_key>/',
 
-        'raw_d': settings.MARKET_API_BASE + 'task/run_raw/d/asset/',
-        'raw_d_offline': settings.MARKET_API_BASE + 'task/offline/run_raw/d/asset/',
-        'setup_d_offline': settings.MARKET_API_BASE + 'task/offline/run_setup/d/asset/',
+        # 'raw_d': settings.MARKET_API_BASE + 'task/run_raw/d/asset/',
+        # 'raw_d_offline': settings.MARKET_API_BASE + 'task/offline/run_raw/d/asset/',
+        # 'setup_d_offline': settings.MARKET_API_BASE + 'task/offline/run_setup/d/asset/',
     }
     playbook = None
 
@@ -26,6 +29,9 @@ class RawDataManager:
     interval = 'd'
 
     def __init__(self, kwargs=None):
+        # defaults
+        self.interval = 'd'
+
         if kwargs is None:
             kwargs = {}
 
@@ -105,10 +111,12 @@ class RawDataManager:
                                        settings.GAE_QUEUES['market-eod']['location'],
                                        settings.GAE_QUEUES['market-eod']['name'])
             for asset in sync_list:
-                url = self.task_urls['raw_d']
-                url += asset.asset_symbol + '/'
-                url += str(last_periods) + '/'
-                url += settings.API_KEY
+                url = self.task_urls['raw']
+                url = url.replace('<interval>', 'd')
+                url = url.replace('<asset_symbol>', asset.asset_symbol)
+                url = url.replace('<last_periods>', str(last_periods))
+                url = url.replace('<api_key>', settings.API_KEY)
+
                 task = {
                     'http_request': {
                         'http_method': 'GET',
@@ -142,11 +150,13 @@ class RawDataManager:
 
             for asset in sync_list:
                 if only_phi_trader:
-                    url = self.task_urls['setup_d_offline']
+                    url = self.task_urls['setup_offline']
                 else:
-                    url = self.task_urls['raw_d_offline']
-                url += asset.asset_symbol + '/'
-                url += settings.API_KEY
+                    url = self.task_urls['raw_offline']
+                url = url.replace('<interval>', 'd')
+                url = url.replace('<asset_symbol>', asset.asset_symbol)
+                url = url.replace('<api_key>', settings.API_KEY)
+
                 task = {
                     'http_request': {
                         'http_method': 'GET',
@@ -198,6 +208,7 @@ class RawDataManager:
         return result
 
     def update_asset_list(self, stock_exchange):
+        # 1. Requirements
         provider_manager = ProviderManager()
         data = provider_manager.get_assets_by_stock_exchange(stock_exchange=stock_exchange.se_short)
 
@@ -208,6 +219,7 @@ class RawDataManager:
         created_list = []
         profile_list = []
 
+        # 2. Iterating over list of Profiles
         for obj in data:
             asset_symbol = obj['asset_symbol']
             asset, created = models.Asset.objects.get_or_create(asset_symbol=asset_symbol,
@@ -215,36 +227,55 @@ class RawDataManager:
             if created:
                 created_list.append(asset.asset_symbol)
 
-            update_profile = False
-
             try:
-                # If Profile exists, update it only if timedelta is greater than 25 days.
+                # Try to add asset_symbol into [profile_list], but only if timedelta is greater than 25 days.
                 profile_mtime = asset.profile.modified_time
 
                 today = datetime.today().date()
                 delta = today - profile_mtime
 
                 if delta >= timedelta(days=25):
-                    update_profile = True
+                    profile_list.append(asset_symbol)
 
             except models.Asset.profile.RelatedObjectDoesNotExist:
-                update_profile = True
-
-            if update_profile:
+                # Asset exists, but doesn't have a Profile instance yet
                 profile_list.append(asset_symbol)
 
+            # 2.1 Handling assets that need a Profile Update
+            if asset.asset_symbol in profile_list:
+                # Updating Profile
                 if settings.ACCESS_PRD_DB:
                     url = self.task_urls['profile']
-                    url += asset.asset_symbol + '/'
-                    url += settings.API_KEY
+                    url = url.replace('<asset_symbol>', asset.asset_symbol)
+                    url = url.replace('<api_key>', settings.API_KEY)
+
                     task = {
                         'http_request': {
                             'http_method': 'GET',
                             'url': url}}
                     client.create_task(parent=parent, task=task)
                 else:
-                    print('Updating Profile for %s...' % asset.asset_symbol)
+                    print('Updating profile for %s...' % asset.asset_symbol)
                     asset.update_profile()
+
+            # 2.2 Handling assets that just got created
+            if asset.asset_symbol in created_list:
+                # Updating Profile
+                if settings.ACCESS_PRD_DB:
+                    url = self.task_urls['raw']
+                    url = url.replace('<interval>', 'd')
+                    url = url.replace('<asset_symbol>', asset.asset_symbol)
+                    url = url.replace('<last_periods>', '0')
+                    url = url.replace('<api_key>', settings.API_KEY)
+
+                    task = {
+                        'http_request': {
+                            'http_method': 'GET',
+                            'url': url}}
+                    client.create_task(parent=parent, task=task)
+                else:
+                    print('Generating raw data for %s...' % asset.asset_symbol)
+                    self.run_asset(interval=self.interval, asset=asset, last_periods=0)
 
         result = {
             'context': self.context,

@@ -72,7 +72,7 @@ class AssetProfileDetail(generics.RetrieveAPIView):
 
     def get_queryset(self):
         ticker = self.request.parser_context['kwargs']['ticker']
-        return Profile.objects.get(asset_symbol=ticker)
+        return Profile.objects.get(asset_id=ticker)
 
     def get(self, request, *args, **kwargs):
         api_key = self.request.query_params.get('api_key')
@@ -94,7 +94,7 @@ class AssetRealtimeDetail(generics.RetrieveAPIView):
 
     def get_queryset(self):
         ticker = self.request.parser_context['kwargs']['ticker']
-        return Realtime.objects.get(asset_symbol=ticker)
+        return Realtime.objects.get(asset_id=ticker)
 
     def get(self, request, *args, **kwargs):
         api_key = self.request.query_params.get('api_key')

@@ -619,13 +619,13 @@ class Asset(models.Model):
 
         if hasattr(self, 'profile'):
             if self.stock_exchange.country_code == self.profile.country_code:
-                if self.asset_volume_avg >= 100000:
+                if self.asset_volume_avg and self.asset_volume_avg >= 100000:
                     is_considered_for_analysis = True
                 else:
                     is_considered_for_analysis = False
             else:
                 # It's a foreign asset
-                if self.asset_volume_avg >= 10000:
+                if self.asset_volume_avg and self.asset_volume_avg >= 10000:
                     is_considered_for_analysis = True
                 else:
                     is_considered_for_analysis = False

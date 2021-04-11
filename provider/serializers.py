@@ -35,12 +35,15 @@ class TickersByExchangeSerializer(serializers.ModelSerializer):
 
 
 class ProfileSerializer(serializers.ModelSerializer):
+    asset_symbol = serializers.ReadOnlyField(source='asset.asset_symbol')
+
     class Meta:
         model = market_models.Profile
         fields = ['asset_symbol', 'asset_name', 'country_code', 'sector_name', 'website', 'business_summary']
 
 
 class RealtimeSerializer(serializers.ModelSerializer):
+    asset_symbol = serializers.ReadOnlyField(source='asset.asset_symbol')
     pct_change_day = serializers.ReadOnlyField(source='pct_change')
 
     class Meta:
