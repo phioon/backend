@@ -325,7 +325,8 @@ class RawDataManager:
                 realtime_manager.run_asset(asset)
 
                 # Run a full sync
-                self.run_asset(interval='d', asset=asset, last_periods=5000)
+                if not asset.is_considered_for_analysis:
+                    self.run_asset(interval='d', asset=asset, last_periods=5000)
 
             elif (today - asset.last_access_time) >= timedelta(days=1):
                 refresh_access = True

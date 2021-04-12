@@ -386,9 +386,9 @@ class D_phiOperation(models.Model):
         for x in range(len(objs)):
             defaults = model_to_dict(objs[x], exclude=['id', 'asset', 'tc', 'radar_on'])
             defaults['d_raw'] = objs[x].d_raw
+            defaults['tc'] = objs[x].tc
 
             D_phiOperation.objects.update_or_create(asset=objs[x].asset,
-                                                    tc=objs[x].tc,
                                                     radar_on=objs[x].radar_on,
                                                     defaults={**defaults})
 
