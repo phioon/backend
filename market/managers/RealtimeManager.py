@@ -9,6 +9,9 @@ from datetime import datetime, timedelta
 
 
 class RealtimeManager:
+    task_urls = {
+        'realtime': settings.MARKET_API_BASE + 'task/update_realtime/asset/<asset_symbol>/<api_key>/',
+    }
     context = None
 
     def __init__(self, kwargs=None):
@@ -38,9 +41,10 @@ class RealtimeManager:
                                        settings.GAE_QUEUES['market-realtime']['name'])
 
             for asset in assets:
-                url = settings.MARKET_API_BASE + 'task/update_realtime/asset/'
-                url += asset.asset_symbol + '/'
-                url += settings.API_KEY
+                url = self.task_urls['realtime']
+                url = url.replace('<asset_symbol>', asset.asset_symbol)
+                url = url.replace('<api_key>', settings.API_KEY)
+
                 task = {
                     'http_request': {
                         'http_method': 'GET',
