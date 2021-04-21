@@ -3,15 +3,15 @@ from django.db import models
 from django.forms.models import model_to_dict
 
 
-class D_raw(models.Model):
-    asset = models.ForeignKey(models_market.Asset, related_name='d_raws', verbose_name='Asset Symbol', on_delete=models.CASCADE)
+class M60_raw(models.Model):
+    asset = models.ForeignKey(models_market.Asset, related_name='m60_raws', verbose_name='Asset Symbol', on_delete=models.CASCADE)
     asset_datetime = models.CharField(max_length=64, unique=True, db_index=True)  # (PETR4.SAO_20191231000000)
     datetime = models.CharField(max_length=32, db_index=True)
-    d_open = models.FloatField()
-    d_high = models.FloatField()
-    d_low = models.FloatField()
-    d_close = models.FloatField()
-    d_volume = models.BigIntegerField()
+    m60_open = models.FloatField()
+    m60_high = models.FloatField()
+    m60_low = models.FloatField()
+    m60_close = models.FloatField()
+    m60_volume = models.BigIntegerField()
 
     def __str__(self):
         return self.asset_datetime
@@ -21,39 +21,39 @@ class D_raw(models.Model):
         fields = []
 
         if field_type == 'indicator':
-            fields = ['d_open', 'd_high', 'd_low', 'd_close']
+            fields = ['m60_open', 'm60_high', 'm60_low', 'm60_close']
 
         return fields
 
     @staticmethod
     def bulk_create(objs):
-        D_raw.objects.bulk_create(objs, ignore_conflicts=True)
+        M60_raw.objects.bulk_create(objs, ignore_conflicts=True)
 
     @staticmethod
     def bulk_update_or_create(objs):
         for x in range(len(objs)):
-            D_raw.objects.update_or_create(
+            M60_raw.objects.update_or_create(
                 asset_datetime=objs[x].asset_datetime,
                 defaults={'asset': objs[x].asset,
                           'datetime': objs[x].datetime,
-                          'd_open': objs[x].d_open,
-                          'd_high': objs[x].d_high,
-                          'd_low': objs[x].d_low,
-                          'd_close': objs[x].d_close,
-                          'd_volume': objs[x].d_volume})
+                          'm60_open': objs[x].m60_open,
+                          'm60_high': objs[x].m60_high,
+                          'm60_low': objs[x].m60_low,
+                          'm60_close': objs[x].m60_close,
+                          'm60_volume': objs[x].m60_volume})
 
 
-class D_pvpc(models.Model):
-    raw = models.OneToOneField(D_raw, on_delete=models.CASCADE)
+class M60_pvpc(models.Model):
+    raw = models.OneToOneField(M60_raw, on_delete=models.CASCADE)
     asset_datetime = models.CharField(max_length=64, unique=True, db_index=True)  # (PETR4.SA_20191231000000)
 
-    d_pv_72 = models.FloatField(null=True)
-    d_pv_305 = models.FloatField(null=True)
-    d_pv_1292 = models.FloatField(null=True)
+    m60_pv_72 = models.FloatField(null=True)
+    m60_pv_305 = models.FloatField(null=True)
+    m60_pv_1292 = models.FloatField(null=True)
 
-    d_pc_72 = models.FloatField(null=True)
-    d_pc_305 = models.FloatField(null=True)
-    d_pc_1292 = models.FloatField(null=True)
+    m60_pc_72 = models.FloatField(null=True)
+    m60_pc_305 = models.FloatField(null=True)
+    m60_pc_1292 = models.FloatField(null=True)
 
     def __str__(self):
         return self.asset_datetime
@@ -72,7 +72,7 @@ class D_pvpc(models.Model):
 
     @staticmethod
     def bulk_create(objs):
-        D_pvpc.objects.bulk_create(objs, ignore_conflicts=True)
+        M60_pvpc.objects.bulk_create(objs, ignore_conflicts=True)
 
     @staticmethod
     def bulk_update_or_create(objs):
@@ -80,27 +80,27 @@ class D_pvpc(models.Model):
             defaults = model_to_dict(objs[x], exclude=['id', 'asset_datetime'])
             defaults['raw'] = objs[x].raw
 
-            D_pvpc.objects.update_or_create(
+            M60_pvpc.objects.update_or_create(
                 asset_datetime=objs[x].asset_datetime,
                 defaults={**defaults})
 
 
-class D_ema(models.Model):
-    raw = models.OneToOneField(D_raw, db_index=True, on_delete=models.CASCADE)
+class M60_ema(models.Model):
+    raw = models.OneToOneField(M60_raw, db_index=True, on_delete=models.CASCADE)
     asset_datetime = models.CharField(max_length=64, unique=True, db_index=True)  # (PETR4.SA_20191231000000)
 
-    d_ema_close_8 = models.FloatField(null=True)
-    d_ema_close_9 = models.FloatField(null=True)
-    d_ema_close_17 = models.FloatField(null=True)
-    d_ema_close_34 = models.FloatField(null=True)
-    d_ema_close_50 = models.FloatField(null=True)
-    d_ema_close_72 = models.FloatField(null=True)
-    d_ema_close_144 = models.FloatField(null=True)
-    d_ema_close_200 = models.FloatField(null=True)
-    d_ema_close_305 = models.FloatField(null=True)
-    d_ema_close_610 = models.FloatField(null=True)
-    d_ema_close_1292 = models.FloatField(null=True)
-    d_ema_close_2584 = models.FloatField(null=True)
+    m60_ema_close_8 = models.FloatField(null=True)
+    m60_ema_close_9 = models.FloatField(null=True)
+    m60_ema_close_17 = models.FloatField(null=True)
+    m60_ema_close_34 = models.FloatField(null=True)
+    m60_ema_close_50 = models.FloatField(null=True)
+    m60_ema_close_72 = models.FloatField(null=True)
+    m60_ema_close_144 = models.FloatField(null=True)
+    m60_ema_close_200 = models.FloatField(null=True)
+    m60_ema_close_305 = models.FloatField(null=True)
+    m60_ema_close_610 = models.FloatField(null=True)
+    m60_ema_close_1292 = models.FloatField(null=True)
+    m60_ema_close_2584 = models.FloatField(null=True)
 
     def __str__(self):
         return self.asset_datetime
@@ -119,7 +119,7 @@ class D_ema(models.Model):
 
     @staticmethod
     def bulk_create(objs):
-        D_ema.objects.bulk_create(objs, ignore_conflicts=True)
+        M60_ema.objects.bulk_create(objs, ignore_conflicts=True)
 
     @staticmethod
     def bulk_update_or_create(objs):
@@ -127,24 +127,24 @@ class D_ema(models.Model):
             defaults = model_to_dict(objs[x], exclude=['id', 'asset_datetime'])
             defaults['raw'] = objs[x].raw
 
-            D_ema.objects.update_or_create(
+            M60_ema.objects.update_or_create(
                 asset_datetime=objs[x].asset_datetime,
                 defaults={**defaults})
 
 
-class D_sma(models.Model):
-    raw = models.OneToOneField(D_raw, db_index=True, on_delete=models.CASCADE)
+class M60_sma(models.Model):
+    raw = models.OneToOneField(M60_raw, db_index=True, on_delete=models.CASCADE)
     asset_datetime = models.CharField(max_length=64, unique=True, db_index=True)  # (PETR4.SA_20191231000000)
 
-    d_sma_close_7 = models.FloatField(null=True)
-    d_sma_close_10 = models.FloatField(null=True)
-    d_sma_close_20 = models.FloatField(null=True)
-    d_sma_close_21 = models.FloatField(null=True)
-    d_sma_close_30 = models.FloatField(null=True)
-    d_sma_close_50 = models.FloatField(null=True)
-    d_sma_close_55 = models.FloatField(null=True)
-    d_sma_close_100 = models.FloatField(null=True)
-    d_sma_close_200 = models.FloatField(null=True)
+    m60_sma_close_7 = models.FloatField(null=True)
+    m60_sma_close_10 = models.FloatField(null=True)
+    m60_sma_close_20 = models.FloatField(null=True)
+    m60_sma_close_21 = models.FloatField(null=True)
+    m60_sma_close_30 = models.FloatField(null=True)
+    m60_sma_close_50 = models.FloatField(null=True)
+    m60_sma_close_55 = models.FloatField(null=True)
+    m60_sma_close_100 = models.FloatField(null=True)
+    m60_sma_close_200 = models.FloatField(null=True)
 
     def __str__(self):
         return self.asset_datetime
@@ -163,7 +163,7 @@ class D_sma(models.Model):
 
     @staticmethod
     def bulk_create(objs):
-        D_sma.objects.bulk_create(objs, ignore_conflicts=True)
+        M60_sma.objects.bulk_create(objs, ignore_conflicts=True)
 
     @staticmethod
     def bulk_update_or_create(objs):
@@ -171,37 +171,37 @@ class D_sma(models.Model):
             defaults = model_to_dict(objs[x], exclude=['id', 'asset_datetime'])
             defaults['raw'] = objs[x].raw
 
-            D_sma.objects.update_or_create(
+            M60_sma.objects.update_or_create(
                 asset_datetime=objs[x].asset_datetime,
                 defaults={**defaults})
 
 
-class D_roc(models.Model):
-    raw = models.OneToOneField(D_raw, verbose_name='Asset and Datetime', on_delete=models.CASCADE)
+class M60_roc(models.Model):
+    raw = models.OneToOneField(M60_raw, verbose_name='Asset and Datetime', on_delete=models.CASCADE)
     asset_datetime = models.CharField(max_length=64, unique=True, db_index=True)  # (PETR4.SA_20191231000000)
 
-    d_roc_sma_close_7 = models.FloatField(null=True)
-    d_roc_sma_close_10 = models.FloatField(null=True)
-    d_roc_sma_close_20 = models.FloatField(null=True)
-    d_roc_sma_close_21 = models.FloatField(null=True)
-    d_roc_sma_close_30 = models.FloatField(null=True)
-    d_roc_sma_close_50 = models.FloatField(null=True)
-    d_roc_sma_close_55 = models.FloatField(null=True)
-    d_roc_sma_close_100 = models.FloatField(null=True)
-    d_roc_sma_close_200 = models.FloatField(null=True)
+    m60_roc_sma_close_7 = models.FloatField(null=True)
+    m60_roc_sma_close_10 = models.FloatField(null=True)
+    m60_roc_sma_close_20 = models.FloatField(null=True)
+    m60_roc_sma_close_21 = models.FloatField(null=True)
+    m60_roc_sma_close_30 = models.FloatField(null=True)
+    m60_roc_sma_close_50 = models.FloatField(null=True)
+    m60_roc_sma_close_55 = models.FloatField(null=True)
+    m60_roc_sma_close_100 = models.FloatField(null=True)
+    m60_roc_sma_close_200 = models.FloatField(null=True)
 
-    d_roc_ema_close_8 = models.FloatField(null=True)
-    d_roc_ema_close_9 = models.FloatField(null=True)
-    d_roc_ema_close_17 = models.FloatField(null=True)
-    d_roc_ema_close_34 = models.FloatField(null=True)
-    d_roc_ema_close_50 = models.FloatField(null=True)
-    d_roc_ema_close_72 = models.FloatField(null=True)
-    d_roc_ema_close_144 = models.FloatField(null=True)
-    d_roc_ema_close_200 = models.FloatField(null=True)
-    d_roc_ema_close_305 = models.FloatField(null=True)
-    d_roc_ema_close_610 = models.FloatField(null=True)
-    d_roc_ema_close_1292 = models.FloatField(null=True)
-    d_roc_ema_close_2584 = models.FloatField(null=True)
+    m60_roc_ema_close_8 = models.FloatField(null=True)
+    m60_roc_ema_close_9 = models.FloatField(null=True)
+    m60_roc_ema_close_17 = models.FloatField(null=True)
+    m60_roc_ema_close_34 = models.FloatField(null=True)
+    m60_roc_ema_close_50 = models.FloatField(null=True)
+    m60_roc_ema_close_72 = models.FloatField(null=True)
+    m60_roc_ema_close_144 = models.FloatField(null=True)
+    m60_roc_ema_close_200 = models.FloatField(null=True)
+    m60_roc_ema_close_305 = models.FloatField(null=True)
+    m60_roc_ema_close_610 = models.FloatField(null=True)
+    m60_roc_ema_close_1292 = models.FloatField(null=True)
+    m60_roc_ema_close_2584 = models.FloatField(null=True)
 
     def __str__(self):
         return self.asset_datetime
@@ -220,7 +220,7 @@ class D_roc(models.Model):
 
     @staticmethod
     def bulk_create(objs):
-        D_roc.objects.bulk_create(objs, ignore_conflicts=True)
+        M60_roc.objects.bulk_create(objs, ignore_conflicts=True)
 
     @staticmethod
     def bulk_update_or_create(objs):
@@ -228,28 +228,28 @@ class D_roc(models.Model):
             defaults = model_to_dict(objs[x], exclude=['id', 'asset_datetime'])
             defaults['raw'] = objs[x].raw
 
-            D_roc.objects.update_or_create(
+            M60_roc.objects.update_or_create(
                 asset_datetime=objs[x].asset_datetime,
                 defaults={**defaults})
 
 
-class D_var(models.Model):
-    raw = models.OneToOneField(D_raw, verbose_name='Asset and Datetime', on_delete=models.CASCADE)
+class M60_var(models.Model):
+    raw = models.OneToOneField(M60_raw, verbose_name='Asset and Datetime', on_delete=models.CASCADE)
     asset_datetime = models.CharField(max_length=64, unique=True, db_index=True)  # (PETR4.SA_20191231000000)
 
-    d_var_ema_close_8_17 = models.FloatField(null=True, verbose_name='Percent variation between values')
-    d_var_ema_close_17_34 = models.FloatField(null=True, verbose_name='Percent variation between values')
-    d_var_ema_close_34_72 = models.FloatField(null=True, verbose_name='Percent variation between values')
-    d_var_ema_close_72_144 = models.FloatField(null=True, verbose_name='Percent variation between values')
-    d_var_ema_close_144_305 = models.FloatField(null=True, verbose_name='Percent variation between values')
-    d_var_ema_close_305_610 = models.FloatField(null=True, verbose_name='Percent variation between values')
+    m60_var_ema_close_8_17 = models.FloatField(null=True, verbose_name='Percent variation between values')
+    m60_var_ema_close_17_34 = models.FloatField(null=True, verbose_name='Percent variation between values')
+    m60_var_ema_close_34_72 = models.FloatField(null=True, verbose_name='Percent variation between values')
+    m60_var_ema_close_72_144 = models.FloatField(null=True, verbose_name='Percent variation between values')
+    m60_var_ema_close_144_305 = models.FloatField(null=True, verbose_name='Percent variation between values')
+    m60_var_ema_close_305_610 = models.FloatField(null=True, verbose_name='Percent variation between values')
 
     def __str__(self):
         return self.asset_datetime
 
     @staticmethod
     def bulk_create(objs):
-        D_var.objects.bulk_create(objs, ignore_conflicts=True)
+        M60_var.objects.bulk_create(objs, ignore_conflicts=True)
 
     @staticmethod
     def bulk_update_or_create(objs):
@@ -257,13 +257,13 @@ class D_var(models.Model):
             defaults = model_to_dict(objs[x], exclude=['id', 'asset_datetime'])
             defaults['raw'] = objs[x].raw
 
-            D_var.objects.update_or_create(
+            M60_var.objects.update_or_create(
                 asset_datetime=objs[x].asset_datetime,
                 defaults={**defaults})
 
 
-class D_tc(models.Model):
-    raw = models.OneToOneField(D_raw, on_delete=models.CASCADE)
+class M60_tc(models.Model):
+    raw = models.OneToOneField(M60_raw, on_delete=models.CASCADE)
     asset_datetime = models.CharField(max_length=64, unique=True, db_index=True)  # (PETR4.SAO_20191231000000)
 
     pivot = models.IntegerField(null=True)
@@ -285,7 +285,7 @@ class D_tc(models.Model):
 
     @staticmethod
     def bulk_create(objs):
-        D_tc.objects.bulk_create(objs, ignore_conflicts=True)
+        M60_tc.objects.bulk_create(objs, ignore_conflicts=True)
 
     @staticmethod
     def bulk_update_or_create(objs):
@@ -293,14 +293,14 @@ class D_tc(models.Model):
             defaults = model_to_dict(objs[x], exclude=['id', 'asset_datetime'])
             defaults['raw'] = objs[x].raw
 
-            D_tc.objects.update_or_create(asset_datetime=objs[x].asset_datetime,
-                                          defaults={**defaults})
+            M60_tc.objects.update_or_create(asset_datetime=objs[x].asset_datetime,
+                                            defaults={**defaults})
 
 
-class D_phiOperation(models.Model):
-    raw = models.OneToOneField(D_raw, on_delete=models.CASCADE)
-    asset = models.ForeignKey(models_market.Asset, related_name='d_phi_operations', on_delete=models.CASCADE)
-    tc = models.ForeignKey(models_market.TechnicalCondition, related_name='d_phi_operations', on_delete=models.CASCADE)
+class M60_phiOperation(models.Model):
+    raw = models.OneToOneField(M60_raw, on_delete=models.CASCADE)
+    asset = models.ForeignKey(models_market.Asset, related_name='m60_phi_operations', on_delete=models.CASCADE)
+    tc = models.ForeignKey(models_market.TechnicalCondition, related_name='m60_phi_operations', on_delete=models.CASCADE)
 
     status = models.CharField(max_length=32)
     is_public = models.BooleanField(null=True, default=None)
@@ -321,7 +321,7 @@ class D_phiOperation(models.Model):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['asset', 'tc', 'radar_on'], name='d_phioperation__asset_tc_date')
+            models.UniqueConstraint(fields=['asset', 'tc', 'radar_on'], name='m60_phioperation__asset_tc_date')
         ]
 
     def __str__(self):
@@ -388,14 +388,12 @@ class D_phiOperation(models.Model):
             defaults['raw'] = objs[x].raw
             defaults['tc'] = objs[x].tc
 
-            print('%s | %s | %s' % (objs[x].asset, objs[x].tc, objs[x].radar_on))
-
-            D_phiOperation.objects.update_or_create(asset=objs[x].asset,
-                                                    radar_on=objs[x].radar_on,
-                                                    defaults={**defaults})
+            M60_phiOperation.objects.update_or_create(asset=objs[x].asset,
+                                                      radar_on=objs[x].radar_on,
+                                                      defaults={**defaults})
 
 
-class D_phiStats(models.Model):
+class M60_phiStats(models.Model):
     asset = models.ForeignKey(models_market.Asset, db_index=True, on_delete=models.CASCADE)
     tc = models.ForeignKey(models_market.TechnicalCondition, on_delete=models.CASCADE)
 
@@ -415,7 +413,7 @@ class D_phiStats(models.Model):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['asset', 'tc'], name='d_phistats__asset_tc')
+            models.UniqueConstraint(fields=['asset', 'tc'], name='m60_phistats__asset_tc')
         ]
 
     def __str__(self):
@@ -426,6 +424,6 @@ class D_phiStats(models.Model):
         for x in range(len(objs)):
             defaults = model_to_dict(objs[x], exclude=['id', 'asset', 'tc'])
 
-            D_phiStats.objects.update_or_create(asset=objs[x].asset,
-                                                tc=objs[x].tc,
-                                                defaults={**defaults})
+            M60_phiStats.objects.update_or_create(asset=objs[x].asset,
+                                                  tc=objs[x].tc,
+                                                  defaults={**defaults})

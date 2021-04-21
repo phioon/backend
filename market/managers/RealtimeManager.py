@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 
 class RealtimeManager:
     task_urls = {
-        'realtime': settings.MARKET_API_BASE + 'task/update_realtime/asset/<asset_symbol>/<api_key>/',
+        'realtime': settings.MARKET_API_BASE + 'task/update_realtime_from_intraday_data/asset/<asset_symbol>/<api_key>/',
     }
     context = None
 

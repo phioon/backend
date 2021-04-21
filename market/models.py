@@ -1,5 +1,6 @@
 from django.db import models
 from django_engine import settings
+from django_engine.functions import utils
 from market.managers.ProviderManager import ProviderManager
 from datetime import datetime
 
@@ -592,6 +593,41 @@ class Asset(models.Model):
 
             profile.save()
 
+    def update_realtime_from_intraday_data(self, date, data_df):
+        data = {
+            'datetime': data_df['datetime'].iloc[-1],
+            'open': data_df.iloc[0]['open'],
+            'high': data_df['high'].max(),
+            'low': data_df['low'].min(),
+            'close': data_df['close'].iloc[-1],
+            'volume': data_df['volume'].sum()
+        }
+
+        if hasattr(self, 'realtime'):
+            realtime = self.realtime
+        else:
+            realtime = Realtime()
+            realtime.asset = self
+            realtime.last_trade_time = '2001-01-01 00:00:00'
+
+        if data['datetime'] > realtime.last_trade_time:
+            realtime.last_trade_time = data['datetime']
+            if data['open']:
+                realtime.open = data['open']
+            if data['high']:
+                realtime.high = data['high']
+            if data['low']:
+                realtime.low = data['low']
+            if data['close']:
+                realtime.price = data['close']
+
+                yesterday_raw = self.d_raws.order_by('-datetime')[0]
+                realtime.pct_change = utils.rate_of_change(yesterday_raw.d_close, data['close'])
+            if data['volume']:
+                realtime.volume = data['volume']
+
+            realtime.save()
+
     # D_Raw.update_asset calls it every day
     def update_stats(self, last_periods=10):
         self.update_volume_avg()
@@ -600,10 +636,10 @@ class Asset(models.Model):
         return last_periods
 
     def update_volume_avg(self):
-        # Ordered by 'd_datetime' DESCENDENT
-        vol_list = list(self.draws.exclude(d_close=0)
+        # Ordered by 'datetime' DESCENDENT
+        vol_list = list(self.d_raws.exclude(d_close=0)
                         .values_list('d_volume', flat=True)
-                        .order_by('-d_datetime')[:10])
+                        .order_by('-datetime')[:10])
 
         # Calculate volume average of last 10 days
         if len(vol_list) > 0:

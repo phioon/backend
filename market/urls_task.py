@@ -2,7 +2,7 @@ from django.urls import path
 from market import views_task
 
 urlpatterns = [
-    path('update_realtime/asset/<symbol>/<apiKey>/', views_task.update_realtime_asset,
+    path('update_realtime_from_intraday_data/asset/<symbol>/<apiKey>/', views_task.update_realtime_asset,
          name='Update Realtime for Asset'),
 
     path('run_raw/<interval>/asset/<symbol>/<int:last_periods>/<apiKey>/', views_task.run_raw_data_asset,

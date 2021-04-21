@@ -59,9 +59,12 @@ def get_field_as_unique_key(obj_list, key_field):
     return dictionary
 
 
-def has_empty_fields(obj):
-    for value in obj.values():
-        if not value:
+def has_empty_fields(obj, ignore_fields=None):
+    if ignore_fields is None:
+        ignore_fields = []
+
+    for k, v in obj.items():
+        if k not in ignore_fields and not v:
             return True
     return False
 

@@ -4,7 +4,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework import generics, permissions
 from rest_framework.response import Response
 
-from market import serializers_d, models, models_d
+from market import serializers_m60, models, models_m60
 
 from datetime import datetime, timedelta
 import json
@@ -12,13 +12,7 @@ import json
 
 class RawList(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
-
-    def get_serializer_class(self):
-        detailed = str(self.request.query_params.get('detailed')).lower()
-        if detailed == 'true':
-            return serializers_d.RawDetailSerializer
-        else:
-            return serializers_d.RawBasicSerializer
+    serializer_class = serializers_m60.RawSerializer
 
     def get_queryset(self):
         asset = self.request.query_params.get('asset')
@@ -30,9 +24,9 @@ class RawList(generics.ListAPIView):
         if dateTo is None:
             dateTo = str(datetime.today().date())
 
-        return models_d.D_raw.objects.filter(asset=asset,
-                                             datetime__gte=dateFrom,
-                                             datetime__lte=dateTo + ' 23:59:59')
+        return models_m60.M60_raw.objects.filter(asset=asset,
+                                                 datetime__gte=dateFrom,
+                                                 datetime__lte=dateTo + ' 23:59:59')
 
 
 @api_view(['GET'])
@@ -51,7 +45,7 @@ def sma_latest_list(request):
     if last_periods is None or last_periods <= 0 or last_periods >= 10:
         last_periods = 1
 
-    dates = models_d.D_raw.objects.values('datetime').distinct().order_by('-datetime')
+    dates = models_m60.M60_raw.objects.values('datetime').distinct().order_by('-datetime')
     date_from = dates[last_periods - 1]['datetime']
     result['latest_datetime'] = dates[0]['datetime']
 
@@ -64,7 +58,7 @@ def sma_latest_list(request):
 
     # Append data into result
     for asset in assets:
-        objs = list(models_d.D_sma.objects.filter(raw__asset=asset, raw__datetime__gte=date_from)
+        objs = list(models_m60.M60_sma.objects.filter(raw__asset=asset, raw__datetime__gte=date_from)
                     .order_by('-asset_datetime'))
 
         if len(objs) != last_periods:
@@ -106,7 +100,7 @@ def ema_latest_list(request):
     if last_periods is None or last_periods <= 0 or last_periods >= 10:
         last_periods = 1
 
-    dates = models_d.D_raw.objects.values('datetime').distinct().order_by('-datetime')
+    dates = models_m60.M60_raw.objects.values('datetime').distinct().order_by('-datetime')
     date_from = dates[last_periods - 1]['datetime']
     result['latest_datetime'] = dates[0]['datetime']
 
@@ -119,7 +113,7 @@ def ema_latest_list(request):
 
     # Append data into result
     for asset in assets:
-        objs = list(models_d.D_ema.objects.filter(raw__asset=asset, raw__datetime__gte=date_from)
+        objs = list(models_m60.M60_ema.objects.filter(raw__asset=asset, raw__datetime__gte=date_from)
                     .order_by('-asset_datetime'))
 
         if len(objs) != last_periods:
@@ -161,7 +155,7 @@ def quote_latest_list(request):
     if last_periods is None or last_periods <= 0 or last_periods >= 10:
         last_periods = 1
 
-    dates = models_d.D_raw.objects.values('datetime').distinct().order_by('-datetime')
+    dates = models_m60.M60_raw.objects.values('datetime').distinct().order_by('-datetime')
     date_from = dates[last_periods - 1]['datetime']
     result['latest_datetime'] = dates[0]['datetime']
 
@@ -174,7 +168,7 @@ def quote_latest_list(request):
 
     # Append data into result
     for asset in assets:
-        raw_objs = list(models_d.D_raw.objects.filter(asset=asset, datetime__gte=date_from)
+        raw_objs = list(models_m60.M60_raw.objects.filter(asset=asset, datetime__gte=date_from)
                         .order_by('-asset_datetime'))
         raw_objs = json.loads(django_serializers.serialize('json', raw_objs))
 
@@ -193,10 +187,10 @@ def quote_latest_list(request):
                     # Inserts new item into position 0
                     raw_objs.insert(0, {
                         'fields': {
-                            'd_open': asset.realtime.open,
-                            'd_high': asset.realtime.high,
-                            'd_low': asset.realtime.low,
-                            'd_close': asset.realtime.price,
+                            'm60_open': asset.realtime.open,
+                            'm60_high': asset.realtime.high,
+                            'm60_low': asset.realtime.low,
+                            'm60_close': asset.realtime.price,
                         }
                     })
                     # Removes last item
@@ -234,7 +228,7 @@ def phibo_latest_list(request):
     if last_periods is None or last_periods <= 0 or last_periods >= 10:
         last_periods = 1
 
-    dates = models_d.D_raw.objects.values('datetime').distinct().order_by('-datetime')
+    dates = models_m60.M60_raw.objects.values('datetime').distinct().order_by('-datetime')
     date_from = dates[last_periods - 1]['datetime']
     result['latest_datetime'] = dates[0]['datetime']
 
@@ -247,7 +241,7 @@ def phibo_latest_list(request):
 
     # Append data into result
     for asset in assets:
-        objs = list(models_d.D_pvpc.objects.filter(raw__asset=asset, raw__datetime__gte=date_from)
+        objs = list(models_m60.M60_pvpc.objects.filter(raw__asset=asset, raw__datetime__gte=date_from)
                     .order_by('-asset_datetime'))
 
         if len(objs) != last_periods:
@@ -289,7 +283,7 @@ def roc_latest_list(request):
     if last_periods is None or last_periods <= 0 or last_periods >= 10:
         last_periods = 1
 
-    dates = models_d.D_raw.objects.values('datetime').distinct().order_by('-datetime')
+    dates = models_m60.M60_raw.objects.values('datetime').distinct().order_by('-datetime')
     date_from = dates[last_periods - 1]['datetime']
     result['latest_datetime'] = dates[0]['datetime']
 
@@ -302,7 +296,7 @@ def roc_latest_list(request):
 
     # Append data into result
     for asset in assets:
-        objs = list(models_d.D_roc.objects.filter(raw__asset=asset, raw__datetime__gte=date_from)
+        objs = list(models_m60.M60_roc.objects.filter(raw__asset=asset, raw__datetime__gte=date_from)
                     .order_by('-asset_datetime'))
 
         if len(objs) != last_periods:
@@ -330,7 +324,7 @@ def roc_latest_list(request):
 
 class SetupList(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
-    serializer_class = serializers_d.PhiOperationSerializer
+    serializer_class = serializers_m60.PhiOperationSerializer
 
     def get_queryset(self):
         stock_exchange = self.request.query_params.get('stockExchange')
@@ -339,7 +333,7 @@ class SetupList(generics.ListAPIView):
         if date_from is None:
             date_from = str(datetime.today().date() - timedelta(days=45))
 
-        setups = models_d.D_phiOperation.objects.filter(
+        setups = models_m60.M60_phiOperation.objects.filter(
             Q(raw__asset__stock_exchange__exact=stock_exchange, is_public=True),
             Q(ended_on__isnull=True) | Q(radar_on__gte=date_from))
 
@@ -348,7 +342,7 @@ class SetupList(generics.ListAPIView):
 
 class SetupStatsList(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
-    serializer_class = serializers_d.PhiStatsSerializer
+    serializer_class = serializers_m60.PhiStatsSerializer
 
     def get_queryset(self):
         stock_exchange = self.request.query_params.get('stockExchange')
@@ -357,7 +351,7 @@ class SetupStatsList(generics.ListAPIView):
         if date_from is None:
             date_from = str(datetime.today().date() - timedelta(days=90))
 
-        phi_operations = models_d.D_phiOperation.objects\
+        phi_operations = models_m60.M60_phiOperation.objects\
             .filter(Q(raw__asset__stock_exchange__exact=stock_exchange, is_public=True),
                     Q(ended_on__isnull=True) | Q(radar_on__gte=date_from))\
             .values('tc_id', 'asset_id')\
@@ -366,6 +360,6 @@ class SetupStatsList(generics.ListAPIView):
         tc_ids = phi_operations.values_list('tc_id')
         asset_symbols = phi_operations.values_list('asset_id')
 
-        stats_data = models_d.D_phiStats.objects.filter(tc_id__in=tc_ids, asset_id__in=asset_symbols)
+        stats_data = models_m60.M60_phiStats.objects.filter(tc_id__in=tc_ids, asset_id__in=asset_symbols)
 
         return stats_data

@@ -6,6 +6,7 @@ from market import models
 from market.managers.ProviderManager import ProviderManager
 from market.managers.RealtimeManager import RealtimeManager
 from market.managers.playbooks.D_rawData import D_rawData
+from market.managers.playbooks.M60_rawData import M60_rawData
 
 from google.cloud import tasks_v2
 from datetime import datetime, timedelta
@@ -18,10 +19,6 @@ class RawDataManager:
         'raw': settings.MARKET_API_BASE + 'task/run_raw/<interval>/asset/<asset_symbol>/<last_periods>/<api_key>/',
         'raw_offline': settings.MARKET_API_BASE + 'task/offline/run_raw/<interval>/asset/<asset_symbol>/<api_key>/',
         'setup_offline': settings.MARKET_API_BASE + 'task/offline/run_setup/<interval>/asset/<asset_symbol>/<api_key>/',
-
-        # 'raw_d': settings.MARKET_API_BASE + 'task/run_raw/d/asset/',
-        # 'raw_d_offline': settings.MARKET_API_BASE + 'task/offline/run_raw/d/asset/',
-        # 'setup_d_offline': settings.MARKET_API_BASE + 'task/offline/run_setup/d/asset/',
     }
     playbook = None
 
@@ -90,11 +87,11 @@ class RawDataManager:
             delta_days_tolerance = 3
 
         for asset in assets:
-            draws = asset.draws
+            draws = asset.d_raws
 
             if draws.count() > 0:
-                latest_draw = asset.draws.order_by('-d_datetime')[0]
-                latest_datetime = datetime.strptime(latest_draw.d_datetime, '%Y-%m-%d %H:%M:%S')
+                latest_draw = asset.d_raws.order_by('-datetime')[0]
+                latest_datetime = datetime.strptime(latest_draw.datetime, '%Y-%m-%d %H:%M:%S')
                 latest_datetime = timezone.make_aware(latest_datetime, tz)
                 delta = today - latest_datetime
 
@@ -139,7 +136,7 @@ class RawDataManager:
         only_offline = True
 
         for asset in assets:
-            if asset.draws.count() > 0:
+            if asset.d_raws.count() > 0:
                 sync_list.append(asset)
 
         if settings.ACCESS_PRD_DB:
@@ -293,9 +290,11 @@ class RawDataManager:
             last_periods = 10000
 
         # 2. Selecting Playbook according to the interval
+        kwargs = {'asset': asset, 'last_periods': last_periods}
         if self.interval == 'd':
-            kwargs = {'asset': asset, 'last_periods': last_periods}
             self.playbook = D_rawData(kwargs=kwargs)
+        elif self.interval == 'm60':
+            self.playbook = M60_rawData(kwargs=kwargs)
 
         # 3. Executing Playbook
         if self.playbook:

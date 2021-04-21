@@ -82,15 +82,14 @@ class EodSerializer(serializers.ModelSerializer):
 
         result = market_models_d.D_raw.objects.filter(asset=obj) \
             .annotate(stock_exchange=F('asset__stock_exchange'),
-                      date=F('d_datetime'),
                       open=F('d_open'),
                       high=F('d_high'),
                       low=F('d_low'),
                       close=F('d_close'),
                       adj_close=F('d_close'),
                       volume=F('d_volume'),) \
-            .values('stock_exchange', 'asset', 'date', 'open', 'high', 'low', 'close', 'adj_close', 'volume') \
-            .order_by('-date')
+            .values('stock_exchange', 'asset', 'datetime', 'open', 'high', 'low', 'close', 'adj_close', 'volume') \
+            .order_by('-datetime')
 
         if limit > 0:
             result = result[:limit]
