@@ -42,7 +42,7 @@ else:
     # [DEV] environment
     DEBUG = True
     ACCESS_PRD_DB = False       # Set 'True' to access PRD data (remember to turn GAE proxy on)
-    PHIOON_AS_PROVIDER = True
+    PHIOON_AS_PROVIDER = False
 
     DB_DEFAULT['HOST'] = '127.0.0.1'
 

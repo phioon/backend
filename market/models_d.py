@@ -321,7 +321,7 @@ class D_phiOperation(models.Model):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['asset', 'tc', 'radar_on'], name='d_phioperation__asset_tc_date')
+            models.UniqueConstraint(fields=['asset', 'radar_on'], name='d_phioperation__asset_datetime')
         ]
 
     def __str__(self):
@@ -387,8 +387,6 @@ class D_phiOperation(models.Model):
             defaults = model_to_dict(objs[x], exclude=['id', 'asset', 'tc', 'radar_on'])
             defaults['raw'] = objs[x].raw
             defaults['tc'] = objs[x].tc
-
-            print('%s | %s | %s' % (objs[x].asset, objs[x].tc, objs[x].radar_on))
 
             D_phiOperation.objects.update_or_create(asset=objs[x].asset,
                                                     radar_on=objs[x].radar_on,

@@ -2,7 +2,7 @@ from django.urls import path
 from market import views_cron
 
 urlpatterns = [
-    path('update_realtime_from_intraday_data/stock_exchange/<stock_exchange>/<apiKey>/', views_cron.update_realtime_stock_exchange,
+    path('update_realtime/stock_exchange/<stock_exchange>/<apiKey>/', views_cron.update_realtime_stock_exchange,
          name='Update Realtime for SE'),
     path('update_asset_list/<stock_exchange>/<apiKey>/', views_cron.update_asset_list,
          name='Update Asset List'),

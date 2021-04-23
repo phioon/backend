@@ -36,143 +36,7 @@ class RawDataManager:
             if hasattr(self, k):
                 setattr(self, k, v)
 
-    # Stock Exchange
-    def run_stock_exchange(self, interval, stock_exchange, last_periods=10, only_offline=False, only_phi_trader=False):
-        self.interval = str(interval).lower()
-        result = {}
-
-        # 2. Executing playbook according to the interval
-        if self.interval == 'd':
-            if only_offline or only_phi_trader:
-                result = self.run_d_stock_exchange_offline(stock_exchange=stock_exchange,
-                                                           only_phi_trader=only_phi_trader)
-            else:
-                result = self.run_d_stock_exchange(stock_exchange=stock_exchange,
-                                                   last_periods=last_periods)
-
-        return result
-
-    def run_d_stock_exchange(self, stock_exchange, last_periods):
-        tz = pytz.timezone(stock_exchange.timezone)
-        today = datetime.today().astimezone(tz)
-        a_month_ago = today - timedelta(days=30)
-
-        # Once we got a bigger plan with Providers, switch it to all assets (line bellow)
-        # assets = Asset.objects.filter(stock_exchange=stock_exchange)
-        sync_list = []
-        assets = stock_exchange.assets.filter(
-            Q(last_access_time__gte=a_month_ago) | Q(is_considered_for_analysis=True))
-
-        if today.weekday() in [0]:
-            # MON
-            if today.hour <= 12:
-                # Latest EOD data on DB must be Friday's.
-                delta_days_tolerance = 4
-            else:
-                # Latest EOD data on DB must be today's.
-                delta_days_tolerance = 1
-        elif today.weekday() in [1, 2, 3, 4]:
-            # TUS, WED, THU, SEX
-            if today.hour <= 12:
-                # Latest EOD data on DB must be yesterday's.
-                delta_days_tolerance = 2
-            else:
-                # Latest EOD data on DB must be today's.
-                delta_days_tolerance = 1
-        elif today.weekday() in [5]:
-            # SAT: Latest EOD data on DB must be Friday's.
-            delta_days_tolerance = 2
-        else:
-            # SUN: Latest EOD data on DB must be Friday's.
-            delta_days_tolerance = 3
-
-        for asset in assets:
-            draws = asset.d_raws
-
-            if draws.count() > 0:
-                latest_draw = asset.d_raws.order_by('-datetime')[0]
-                latest_datetime = datetime.strptime(latest_draw.datetime, '%Y-%m-%d %H:%M:%S')
-                latest_datetime = timezone.make_aware(latest_datetime, tz)
-                delta = today - latest_datetime
-
-                if delta > timedelta(days=delta_days_tolerance):
-                    # Sync only assets that really need to be synchronized
-                    sync_list.append(asset)
-            else:
-                sync_list.append(asset)
-                last_periods = 0
-
-        if settings.ACCESS_PRD_DB:
-            client = tasks_v2.CloudTasksClient()
-            parent = client.queue_path(settings.GAE_PROJECT,
-                                       settings.GAE_QUEUES['market-eod']['location'],
-                                       settings.GAE_QUEUES['market-eod']['name'])
-            for asset in sync_list:
-                url = self.task_urls['raw']
-                url = url.replace('<interval>', 'd')
-                url = url.replace('<asset_symbol>', asset.asset_symbol)
-                url = url.replace('<last_periods>', str(last_periods))
-                url = url.replace('<api_key>', settings.API_KEY)
-
-                task = {
-                    'http_request': {
-                        'http_method': 'GET',
-                        'url': url}}
-                client.create_task(parent=parent, task=task)
-        else:
-            for asset in sync_list:
-                print('Working on %s...' % asset.asset_symbol)
-                self.run_asset(interval=self.interval, asset=asset, last_periods=last_periods)
-
-        result = {
-            'context': self.context,
-            'message': "Assets to be updated: %s" % sync_list}
-        return result
-
-    def run_d_stock_exchange_offline(self, stock_exchange, only_phi_trader):
-        sync_list = []
-        assets = stock_exchange.assets.filter(is_considered_for_analysis=True)
-        last_periods = 10000
-        only_offline = True
-
-        for asset in assets:
-            if asset.d_raws.count() > 0:
-                sync_list.append(asset)
-
-        if settings.ACCESS_PRD_DB:
-            client = tasks_v2.CloudTasksClient()
-            parent = client.queue_path(settings.GAE_PROJECT,
-                                       settings.GAE_QUEUES['market-eod']['location'],
-                                       settings.GAE_QUEUES['market-eod']['name'])
-
-            for asset in sync_list:
-                if only_phi_trader:
-                    url = self.task_urls['setup_offline']
-                else:
-                    url = self.task_urls['raw_offline']
-                url = url.replace('<interval>', 'd')
-                url = url.replace('<asset_symbol>', asset.asset_symbol)
-                url = url.replace('<api_key>', settings.API_KEY)
-
-                task = {
-                    'http_request': {
-                        'http_method': 'GET',
-                        'url': url}}
-                client.create_task(parent=parent, task=task)
-        else:
-            for asset in sync_list:
-                print('Working on %s...' % asset.asset_symbol)
-                self.run_asset(interval=self.interval,
-                               asset=asset,
-                               last_periods=last_periods,
-                               only_offline=only_offline,
-                               only_phi_trader=only_phi_trader)
-
-        result = {
-            'context': self.context,
-            'message': "[%s] Assets to be updated: %s" % (stock_exchange, sync_list)}
-        return result
-
+    # Requirements
     def update_stock_exchange_list(self):
         provider_manager = ProviderManager()
         data = provider_manager.get_stock_exchange_list()
@@ -278,6 +142,235 @@ class RawDataManager:
             'context': self.context,
             'assets_created': created_list,
             'profiles_updated': profile_list}
+        return result
+
+    # Stock Exchange
+    def run_stock_exchange(self, interval, stock_exchange, last_periods=10, only_offline=False, only_phi_trader=False):
+        self.interval = str(interval).lower()
+        result = {}
+
+        # 2. Executing playbook according to the interval
+        if self.interval == 'd':
+            if only_offline or only_phi_trader:
+                result = self.run_d_stock_exchange_offline(stock_exchange=stock_exchange,
+                                                           only_phi_trader=only_phi_trader)
+            else:
+                result = self.run_d_stock_exchange(stock_exchange=stock_exchange,
+                                                   last_periods=last_periods)
+        elif self.interval == 'm60':
+            if only_offline or only_phi_trader:
+                result = self.run_m60_stock_exchange_offline(stock_exchange=stock_exchange,
+                                                             only_phi_trader=only_phi_trader)
+            else:
+                result = self.run_m60_stock_exchange(stock_exchange=stock_exchange,
+                                                     last_periods=last_periods)
+
+        return result
+
+    def run_d_stock_exchange(self, stock_exchange, last_periods):
+        tz = pytz.timezone(stock_exchange.timezone)
+        today = datetime.today().astimezone(tz)
+        a_month_ago = today - timedelta(days=30)
+
+        # Once we got a bigger plan with Providers, switch it to all assets (line bellow)
+        # assets = Asset.objects.filter(stock_exchange=stock_exchange)
+        sync_list = []
+        assets = stock_exchange.assets.filter(
+            Q(last_access_time__gte=a_month_ago) | Q(is_considered_for_analysis=True))
+
+        if today.weekday() in [0]:
+            # MON
+            if today.hour <= 12:
+                # Latest EOD data on DB must be Friday's.
+                delta_days_tolerance = 4
+            else:
+                # Latest EOD data on DB must be today's.
+                delta_days_tolerance = 1
+        elif today.weekday() in [1, 2, 3, 4]:
+            # TUS, WED, THU, SEX
+            if today.hour <= 12:
+                # Latest EOD data on DB must be yesterday's.
+                delta_days_tolerance = 2
+            else:
+                # Latest EOD data on DB must be today's.
+                delta_days_tolerance = 1
+        elif today.weekday() in [5]:
+            # SAT: Latest EOD data on DB must be Friday's.
+            delta_days_tolerance = 2
+        else:
+            # SUN: Latest EOD data on DB must be Friday's.
+            delta_days_tolerance = 3
+
+        for asset in assets:
+            draws = asset.d_raws
+
+            if draws.count() > 0:
+                latest_draw = asset.d_raws.order_by('-datetime')[0]
+                latest_datetime = datetime.strptime(latest_draw.datetime, '%Y-%m-%d %H:%M:%S')
+                latest_datetime = timezone.make_aware(latest_datetime, tz)
+                delta = today - latest_datetime
+
+                if delta > timedelta(days=delta_days_tolerance):
+                    # Sync only assets that really need to be synchronized
+                    sync_list.append(asset)
+            else:
+                sync_list.append(asset)
+                last_periods = 0
+
+        if settings.ACCESS_PRD_DB:
+            client = tasks_v2.CloudTasksClient()
+            parent = client.queue_path(settings.GAE_PROJECT,
+                                       settings.GAE_QUEUES['market-eod']['location'],
+                                       settings.GAE_QUEUES['market-eod']['name'])
+            for asset in sync_list:
+                url = self.task_urls['raw']
+                url = url.replace('<interval>', 'd')
+                url = url.replace('<asset_symbol>', asset.asset_symbol)
+                url = url.replace('<last_periods>', str(last_periods))
+                url = url.replace('<api_key>', settings.API_KEY)
+
+                task = {
+                    'http_request': {
+                        'http_method': 'GET',
+                        'url': url}}
+                client.create_task(parent=parent, task=task)
+        else:
+            for asset in sync_list:
+                print('[%s] Working on %s...' % (self.context, asset.asset_symbol))
+                self.run_asset(interval=self.interval, asset=asset, last_periods=last_periods)
+
+        result = {
+            'context': self.context,
+            'message': "Assets to be updated: %s" % sync_list}
+        return result
+
+    def run_d_stock_exchange_offline(self, stock_exchange, only_phi_trader):
+        sync_list = []
+        assets = stock_exchange.assets.filter(is_considered_for_analysis=True)
+        last_periods = 10000
+        only_offline = True
+
+        for asset in assets:
+            if asset.d_raws.count() > 0:
+                sync_list.append(asset)
+
+        if settings.ACCESS_PRD_DB:
+            client = tasks_v2.CloudTasksClient()
+            parent = client.queue_path(settings.GAE_PROJECT,
+                                       settings.GAE_QUEUES['market-eod']['location'],
+                                       settings.GAE_QUEUES['market-eod']['name'])
+
+            for asset in sync_list:
+                if only_phi_trader:
+                    url = self.task_urls['setup_offline']
+                else:
+                    url = self.task_urls['raw_offline']
+                url = url.replace('<interval>', 'd')
+                url = url.replace('<asset_symbol>', asset.asset_symbol)
+                url = url.replace('<api_key>', settings.API_KEY)
+
+                task = {
+                    'http_request': {
+                        'http_method': 'GET',
+                        'url': url}}
+                client.create_task(parent=parent, task=task)
+        else:
+            for asset in sync_list:
+                print('[%s] Working on %s...' % (self.context, asset.asset_symbol))
+                self.run_asset(interval=self.interval,
+                               asset=asset,
+                               last_periods=last_periods,
+                               only_offline=only_offline,
+                               only_phi_trader=only_phi_trader)
+
+        result = {
+            'context': self.context,
+            'message': "[%s] Assets to be updated: %s" % (stock_exchange, sync_list)}
+        return result
+
+    def run_m60_stock_exchange(self, stock_exchange, last_periods):
+        result = {'context': self.context}
+
+        tz = pytz.timezone(stock_exchange.timezone)
+        today = datetime.today().astimezone(tz)
+        a_month_ago = today - timedelta(days=30)
+
+        # Once we got a bigger plan with Providers, switch it to all assets (line bellow)
+        # assets = Asset.objects.filter(stock_exchange=stock_exchange)
+        assets = stock_exchange.assets.filter(
+            Q(last_access_time__gte=a_month_ago) | Q(is_considered_for_analysis=True))
+
+        if today.weekday() in [5, 6]:
+            result['message'] = 'Today is not a weekday.'
+            return result
+
+        if settings.ACCESS_PRD_DB:
+            client = tasks_v2.CloudTasksClient()
+            parent = client.queue_path(settings.GAE_PROJECT,
+                                       settings.GAE_QUEUES['market-eod']['location'],
+                                       settings.GAE_QUEUES['market-eod']['name'])
+            for asset in assets:
+                url = self.task_urls['raw']
+                url = url.replace('<interval>', 'm60')
+                url = url.replace('<asset_symbol>', asset.asset_symbol)
+                url = url.replace('<last_periods>', str(last_periods))
+                url = url.replace('<api_key>', settings.API_KEY)
+
+                task = {
+                    'http_request': {
+                        'http_method': 'GET',
+                        'url': url}}
+                client.create_task(parent=parent, task=task)
+        else:
+            for asset in assets:
+                print('[%s] Working on %s...' % (self.context, asset.asset_symbol))
+                self.run_asset(interval=self.interval, asset=asset, last_periods=last_periods)
+
+        result['message'] = "Assets to be updated: %s" % assets
+        return result
+
+    def run_m60_stock_exchange_offline(self, stock_exchange, only_phi_trader):
+        sync_list = []
+        assets = stock_exchange.assets.filter(is_considered_for_analysis=True)
+        last_periods = 5000
+        only_offline = True
+
+        for asset in assets:
+            if asset.m60_raws.count() > 0:
+                sync_list.append(asset)
+
+        if settings.ACCESS_PRD_DB:
+            client = tasks_v2.CloudTasksClient()
+            parent = client.queue_path(settings.GAE_PROJECT,
+                                       settings.GAE_QUEUES['market-eod']['location'],
+                                       settings.GAE_QUEUES['market-eod']['name'])
+
+            for asset in sync_list:
+                if only_phi_trader:
+                    url = self.task_urls['setup_offline']
+                else:
+                    url = self.task_urls['raw_offline']
+                url = url.replace('<interval>', 'm60')
+                url = url.replace('<asset_symbol>', asset.asset_symbol)
+                url = url.replace('<api_key>', settings.API_KEY)
+
+                task = {
+                    'http_request': {
+                        'http_method': 'GET',
+                        'url': url}}
+                client.create_task(parent=parent, task=task)
+        else:
+            for asset in sync_list:
+                print('[%s] Working on %s...' % (self.context, asset.asset_symbol))
+                self.run_asset(interval=self.interval,
+                               asset=asset,
+                               last_periods=last_periods,
+                               only_offline=only_offline,
+                               only_phi_trader=only_phi_trader)
+
+        result = {
+            'context': self.context,
+            'message': "[%s] Assets to be updated: %s" % (stock_exchange, sync_list)}
         return result
 
     # Asset

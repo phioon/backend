@@ -75,6 +75,13 @@ def retrieve_obj_from_obj_list(obj_list, key_field, value):
             return obj
 
 
+def index_obj_in_obj_list(obj_list, key_field, value):
+    for i in range(len(obj_list)):
+        if obj_list[i][key_field] == value:
+            return i
+    return -1
+
+
 def order_by_asc(obj_list, field):
     obj_list = sorted(obj_list, key=itemgetter(field))
     return obj_list

@@ -321,7 +321,7 @@ class M60_phiOperation(models.Model):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['asset', 'tc', 'radar_on'], name='m60_phioperation__asset_tc_date')
+            models.UniqueConstraint(fields=['asset', 'radar_on'], name='m60_phioperation__asset_datetime')
         ]
 
     def __str__(self):
