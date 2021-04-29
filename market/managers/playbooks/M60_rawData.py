@@ -4,13 +4,13 @@ from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
 
-from market import models, models_d
+from market import models, models_m60
 from market.managers.ProviderManager import ProviderManager
 from market.managers.playbooks.RawData import RawData
 from market import setups
 
 
-class D_rawData(RawData):
+class M60_rawData(RawData):
     def __init__(self, kwargs={}):
         if 'stock_exchange' in kwargs:
             self.stock_exchange = kwargs['stock_exchange']
@@ -27,9 +27,9 @@ class D_rawData(RawData):
     def prepare_last_periods(self):
         self.last_periods = self.asset.run_check_list(last_periods=self.last_periods)
 
-        if self.last_periods <= 10:
-            rows_count = self.asset.d_raws.count()
-            if rows_count <= 50:
+        if self.last_periods <= 50:
+            rows_count = self.asset.m60_raws.count()
+            if rows_count <= 100:
                 # Situation 1: Asset is pretty new (company just launched their IPO)
                 # Situation 2: Asset hasn't been synced yet
                 self.last_periods = 10000
@@ -95,40 +95,53 @@ class D_rawData(RawData):
         # 1.  Requirements
         # 1.1 Raw data
         provider_manager = ProviderManager()
-        provider_data = provider_manager.get_eod_data(asset_symbol=self.asset_symbol, last_periods=self.last_periods)
+        provider_data = provider_manager.get_m60_data(asset_symbol=self.asset_symbol, last_periods=self.last_periods)
+        provider_data = pd.DataFrame(data=provider_data)
 
-        # 2. Prepare for DB
+        # 2. Send Update Realtime event
+        if len(provider_data) > 0:
+            latest_datetime = provider_data['datetime'].max()
+            latest_date = latest_datetime[:10]
+
+            realtime_data = provider_data[provider_data['datetime'].str.contains(latest_date)]
+
+            self.asset.update_realtime_from_intraday_data(date=latest_date, data_df=realtime_data)
+
+            if latest_datetime[-5:] != '00:00':
+                # If the last data is not related to a o'clock time, remove it from Raw table.
+                provider_data = provider_data.iloc[:-1]
+
+        # 3. Prepare for DB
         objs = []
-        for item in provider_data:
-            objs.append(models_d.D_raw(asset_datetime=phioon_utils.get_asset_datetime(self.asset_symbol,
-                                                                                      item['datetime']),
-                                       asset=self.asset,
-                                       datetime=item['datetime'],
-                                       d_open=item['open'],
-                                       d_high=item['high'],
-                                       d_low=item['low'],
-                                       d_close=item['close'],
-                                       d_volume=item['volume']))
-
-        # 3. Send to DB
+        for i, item in provider_data.iterrows():
+            objs.append(models_m60.M60_raw(asset_datetime=phioon_utils.get_asset_datetime(self.asset_symbol,
+                                                                                          item['datetime']),
+                                           asset=self.asset,
+                                           datetime=item['datetime'],
+                                           m60_open=item['open'],
+                                           m60_high=item['high'],
+                                           m60_low=item['low'],
+                                           m60_close=item['close'],
+                                           m60_volume=item['volume']))
+        # 4. Send to DB
         if self.last_periods > 0:
-            models_d.D_raw.bulk_update_or_create(objs[-self.last_periods:])  # Ascending
+            models_m60.M60_raw.bulk_update_or_create(objs[-self.last_periods:])  # Ascending
         else:
-            models_d.D_raw.bulk_create(objs)
+            models_m60.M60_raw.bulk_create(objs)
 
-        # 4. Updating Average Volume
+        # 5. Updating Average Volume
         self.asset.update_volume_avg()
 
     def prepare_cache_raw(self):
         mod = 'raw'
 
-        self.cache[mod]['qs'] = models_d.D_raw.objects.filter(asset=self.asset)
+        self.cache[mod]['qs'] = models_m60.M60_raw.objects.filter(asset=self.asset)
 
         self.cache[mod]['df'] = pd.DataFrame(data=self.cache[mod]['qs'].values('asset_datetime',
                                                                                'datetime',
-                                                                               'd_high',
-                                                                               'd_low',
-                                                                               'd_close'))
+                                                                               'm60_high',
+                                                                               'm60_low',
+                                                                               'm60_close'))
         self.cache[mod]['df'].replace({np.nan: None}, inplace=True)
 
     # 2. Phibo PVPC
@@ -143,8 +156,8 @@ class D_rawData(RawData):
         df = self.cache[mod]['df'].sort_values(by=order_by, ascending=ascending, ignore_index=True)
 
         adts = df['asset_datetime'].tolist()
-        highs = df['d_high'].tolist()
-        lows = df['d_low'].tolist()
+        highs = df['m60_high'].tolist()
+        lows = df['m60_low'].tolist()
 
         # 2. Calculations and Prepare for DB
         objs = []
@@ -158,33 +171,33 @@ class D_rawData(RawData):
             if x + 1292 < len(adts):
                 high_1292 = max(highs[x: x + 1292])
                 low_1292 = min(lows[x: x + 1292])
-                obj['d_pv_1292'] = round(((high_1292 - low_1292) * .786) + low_1292, 2)
-                obj['d_pc_1292'] = round(((high_1292 - low_1292) * .214) + low_1292, 2)
+                obj['m60_pv_1292'] = round(((high_1292 - low_1292) * .786) + low_1292, 2)
+                obj['m60_pc_1292'] = round(((high_1292 - low_1292) * .214) + low_1292, 2)
 
             if x + 305 < len(adts):
                 high_305 = max(highs[x: x + 305])
                 low_305 = min(lows[x: x + 305])
-                obj['d_pv_305'] = round(((high_305 - low_305) * .786) + low_305, 2)
-                obj['d_pc_305'] = round(((high_305 - low_305) * .214) + low_305, 2)
+                obj['m60_pv_305'] = round(((high_305 - low_305) * .786) + low_305, 2)
+                obj['m60_pc_305'] = round(((high_305 - low_305) * .214) + low_305, 2)
 
             if x + 72 < len(adts):
                 high_72 = max(highs[x: x + 72])
                 low_72 = min(lows[x: x + 72])
-                obj['d_pv_72'] = round(((high_72 - low_72) * .786) + low_72, 2)
-                obj['d_pc_72'] = round(((high_72 - low_72) * .214) + low_72, 2)
+                obj['m60_pv_72'] = round(((high_72 - low_72) * .786) + low_72, 2)
+                obj['m60_pc_72'] = round(((high_72 - low_72) * .214) + low_72, 2)
 
-            obj = models_d.D_pvpc(**obj)
+            obj = models_m60.M60_pvpc(**obj)
             objs.append(obj)
 
         # 3. Send to DB
         if self.last_periods > 0:
-            models_d.D_pvpc.bulk_update_or_create(objs[:self.last_periods])  # Descending
+            models_m60.M60_pvpc.bulk_update_or_create(objs[:self.last_periods])  # Descending
         else:
-            models_d.D_pvpc.bulk_create(objs)
+            models_m60.M60_pvpc.bulk_create(objs)
 
     def prepare_cache_phibo_pvpc(self):
         mod = 'pvpc'
-        self.cache[mod]['df'] = pd.DataFrame(data=models_d.D_pvpc.objects.filter(raw__asset=self.asset).values())
+        self.cache[mod]['df'] = pd.DataFrame(data=models_m60.M60_pvpc.objects.filter(raw__asset=self.asset).values())
 
         # Ignoring extra fields...
         self.cache[mod]['df'] = self.cache[mod]['df'].drop(columns=['id', 'raw_id'], errors='ignore')
@@ -203,11 +216,11 @@ class D_rawData(RawData):
         raw_df = self.cache[mod]['df'].sort_values(by=order_by, ascending=ascending, ignore_index=True)
 
         adts = raw_df['asset_datetime'].tolist()
-        close_df = raw_df['d_close']
+        close_df = raw_df['m60_close']
 
         # 2.  Calculations
         # 2.1 Close
-        db_prefix = 'd_ema_close_'
+        db_prefix = 'm60_ema_close_'
         periods = self.ema_periods
         ema_closes = {}
         for period in periods:
@@ -225,18 +238,18 @@ class D_rawData(RawData):
             for [k, v] in ema_closes.items():
                 obj[k] = v[x]
 
-            obj = models_d.D_ema(**obj)
+            obj = models_m60.M60_ema(**obj)
             objs.append(obj)
 
         # 4. Send to DB
         if self.last_periods > 0:
-            models_d.D_ema.bulk_update_or_create(objs[-self.last_periods:])  # Ascending
+            models_m60.M60_ema.bulk_update_or_create(objs[-self.last_periods:])  # Ascending
         else:
-            models_d.D_ema.bulk_create(objs)
+            models_m60.M60_ema.bulk_create(objs)
 
     def prepare_cache_ema(self):
         mod = 'ema'
-        self.cache[mod]['df'] = pd.DataFrame(data=models_d.D_ema.objects.filter(raw__asset=self.asset).values())
+        self.cache[mod]['df'] = pd.DataFrame(data=models_m60.M60_ema.objects.filter(raw__asset=self.asset).values())
 
         # Ignoring extra fields...
         self.cache[mod]['df'] = self.cache[mod]['df'].drop(columns=['id', 'raw_id'], errors='ignore')
@@ -254,11 +267,11 @@ class D_rawData(RawData):
         raw_df = self.cache[mod]['df'].sort_values(by=order_by, ascending=ascending, ignore_index=True)
 
         adts = raw_df['asset_datetime'].tolist()
-        close_df = raw_df['d_close']
+        close_df = raw_df['m60_close']
 
         # 2.  Calculations
         # 2.1 Close
-        db_prefix = 'd_sma_close_'
+        db_prefix = 'm60_sma_close_'
         periods = self.sma_periods
         sma_closes = {}
         for period in periods:
@@ -276,18 +289,18 @@ class D_rawData(RawData):
             for [k, v] in sma_closes.items():
                 obj[k] = v[x]
 
-            obj = models_d.D_sma(**obj)
+            obj = models_m60.M60_sma(**obj)
             objs.append(obj)
 
         # 4. Send to DB
         if self.last_periods > 0:
-            models_d.D_sma.bulk_update_or_create(objs[-self.last_periods:])  # Ascending
+            models_m60.M60_sma.bulk_update_or_create(objs[-self.last_periods:])  # Ascending
         else:
-            models_d.D_sma.bulk_create(objs)
+            models_m60.M60_sma.bulk_create(objs)
 
     def prepare_cache_sma(self):
         mod = 'sma'
-        self.cache[mod]['df'] = pd.DataFrame(data=models_d.D_sma.objects.filter(raw__asset=self.asset).values())
+        self.cache[mod]['df'] = pd.DataFrame(data=models_m60.M60_sma.objects.filter(raw__asset=self.asset).values())
 
         # Ignoring extra fields...
         self.cache[mod]['df'] = self.cache[mod]['df'].drop(columns=['id', 'raw_id'], errors='ignore')
@@ -317,8 +330,8 @@ class D_rawData(RawData):
 
         # 2.  Calculations
         # 2.1 EMA (close)
-        db_prefix = 'd_roc_ema_close_'
-        db_prefix_ema = 'd_ema_close_'
+        db_prefix = 'm60_roc_ema_close_'
+        db_prefix_ema = 'm60_ema_close_'
         periods = self.ema_periods
         roc_ema_closes = {}
         for period in periods:
@@ -326,8 +339,8 @@ class D_rawData(RawData):
             roc_ema_closes[db_prefix + str(period)] = phioon_utils.get_roc_list(ema_closes, period)
 
         # 2.2 SMA (close)
-        db_prefix = 'd_roc_sma_close_'
-        db_prefix_sma = 'd_sma_close_'
+        db_prefix = 'm60_roc_sma_close_'
+        db_prefix_sma = 'm60_sma_close_'
         periods = self.sma_periods
         roc_sma_closes = {}
         for period in periods:
@@ -351,14 +364,14 @@ class D_rawData(RawData):
             for [k, v] in roc_sma_closes.items():
                 obj[k] = v[x]
 
-            obj = models_d.D_roc(**obj)
+            obj = models_m60.M60_roc(**obj)
             objs.append(obj)
 
         # 4. Send to DB
         if self.last_periods > 0:
-            models_d.D_roc.bulk_update_or_create(objs[-self.last_periods:])  # Ascending
+            models_m60.M60_roc.bulk_update_or_create(objs[-self.last_periods:])  # Ascending
         else:
-            models_d.D_roc.bulk_create(objs)
+            models_m60.M60_roc.bulk_create(objs)
 
     # 5. Variations
     def run_var(self):
@@ -379,8 +392,8 @@ class D_rawData(RawData):
 
         # 2.  Calculations
         # 2.1 EMA (close)
-        db_prefix = 'd_var_ema_close_'
-        db_prefix_ema = 'd_ema_close_'
+        db_prefix = 'm60_var_ema_close_'
+        db_prefix_ema = 'm60_ema_close_'
         period_tuples = [[8, 17], [17, 34], [34, 72], [72, 144], [144, 305], [305, 610]]
         var_ema_closes = {}
 
@@ -416,18 +429,18 @@ class D_rawData(RawData):
             for [k, v] in var_ema_closes.items():
                 obj[k] = v[x]
 
-            obj = models_d.D_var(**obj)
+            obj = models_m60.M60_var(**obj)
             objs.append(obj)
 
         # 4. Send to DB
         if self.last_periods > 0:
-            models_d.D_var.bulk_update_or_create(objs[-self.last_periods:])  # Ascending
+            models_m60.M60_var.bulk_update_or_create(objs[-self.last_periods:])  # Ascending
         else:
-            models_d.D_var.bulk_create(objs)
+            models_m60.M60_var.bulk_create(objs)
 
     def prepare_cache_var(self):
         mod = 'var'
-        self.cache[mod]['df'] = pd.DataFrame(data=models_d.D_var.objects.filter(raw__asset=self.asset).values())
+        self.cache[mod]['df'] = pd.DataFrame(data=models_m60.M60_var.objects.filter(raw__asset=self.asset).values())
 
         # Ignoring extra fields...
         self.cache[mod]['df'] = self.cache[mod]['df'].drop(columns=['id', 'raw_id'], errors='ignore')
@@ -474,52 +487,52 @@ class D_rawData(RawData):
                 'asset_datetime': adt,
             }
 
-            last_4_highs = raw_df['d_high'][x - 3: x + 1].tolist()
-            last_4_lows = raw_df['d_low'][x - 3: x + 1].tolist()
+            last_4_highs = raw_df['m60_high'][x - 3: x + 1].tolist()
+            last_4_lows = raw_df['m60_low'][x - 3: x + 1].tolist()
 
             # 2.1 Raw
             obj['pivot'] = models.TechnicalCondition.pivot(last_4_highs, last_4_lows)
 
             # 2.2 Phibo PVPC
-            obj['pvpc_alignment'] = models.TechnicalCondition.phibo_alignment(pv_72=pvpc_df['d_pv_72'][x],
-                                                                              pv_305=pvpc_df['d_pv_305'][x],
-                                                                              pv_1292=pvpc_df['d_pv_1292'][x],
-                                                                              pc_72=pvpc_df['d_pc_72'][x],
-                                                                              pc_305=pvpc_df['d_pc_305'][x],
-                                                                              pc_1292=pvpc_df['d_pc_1292'][x])
+            obj['pvpc_alignment'] = models.TechnicalCondition.phibo_alignment(pv_72=pvpc_df['m60_pv_72'][x],
+                                                                              pv_305=pvpc_df['m60_pv_305'][x],
+                                                                              pv_1292=pvpc_df['m60_pv_1292'][x],
+                                                                              pc_72=pvpc_df['m60_pc_72'][x],
+                                                                              pc_305=pvpc_df['m60_pc_305'][x],
+                                                                              pc_1292=pvpc_df['m60_pc_1292'][x])
 
             # 2.3 EMA
-            obj['ema_btl_high'] = models.TechnicalCondition.btl(raw_field=raw_df['d_high'][x],
-                                                                indicator_fast=ema_df['d_ema_close_34'][x],
-                                                                indicator_mid=ema_df['d_ema_close_144'][x],
-                                                                indicator_slow=ema_df['d_ema_close_610'][x])
-            obj['ema_btl_low'] = models.TechnicalCondition.btl(raw_field=raw_df['d_low'][x],
-                                                               indicator_fast=ema_df['d_ema_close_34'][x],
-                                                               indicator_mid=ema_df['d_ema_close_144'][x],
-                                                               indicator_slow=ema_df['d_ema_close_610'][x])
-            obj['ema_alignment'] = models.TechnicalCondition.ema_alignment(var_ema_34_72=var_df['d_var_ema_close_34_72'][x],
-                                                                           var_ema_72_144=var_df['d_var_ema_close_72_144'][x],
-                                                                           var_ema_144_305=var_df['d_var_ema_close_144_305'][x],
-                                                                           var_ema_305_610=var_df['d_var_ema_close_305_610'][x])
-            obj['ema_trend'] = models.TechnicalCondition.ema_trend(var_ema_17_34=var_df['d_var_ema_close_17_34'][x],
-                                                                   var_ema_34_72=var_df['d_var_ema_close_34_72'][x],
-                                                                   var_ema_72_144=var_df['d_var_ema_close_72_144'][x],
-                                                                   var_ema_144_305=var_df['d_var_ema_close_144_305'][x],
-                                                                   var_ema_305_610=var_df['d_var_ema_close_305_610'][x])
+            obj['ema_btl_high'] = models.TechnicalCondition.btl(raw_field=raw_df['m60_high'][x],
+                                                                indicator_fast=ema_df['m60_ema_close_34'][x],
+                                                                indicator_mid=ema_df['m60_ema_close_144'][x],
+                                                                indicator_slow=ema_df['m60_ema_close_610'][x])
+            obj['ema_btl_low'] = models.TechnicalCondition.btl(raw_field=raw_df['m60_low'][x],
+                                                               indicator_fast=ema_df['m60_ema_close_34'][x],
+                                                               indicator_mid=ema_df['m60_ema_close_144'][x],
+                                                               indicator_slow=ema_df['m60_ema_close_610'][x])
+            obj['ema_alignment'] = models.TechnicalCondition.ema_alignment(var_ema_34_72=var_df['m60_var_ema_close_34_72'][x],
+                                                                           var_ema_72_144=var_df['m60_var_ema_close_72_144'][x],
+                                                                           var_ema_144_305=var_df['m60_var_ema_close_144_305'][x],
+                                                                           var_ema_305_610=var_df['m60_var_ema_close_305_610'][x])
+            obj['ema_trend'] = models.TechnicalCondition.ema_trend(var_ema_17_34=var_df['m60_var_ema_close_17_34'][x],
+                                                                   var_ema_34_72=var_df['m60_var_ema_close_34_72'][x],
+                                                                   var_ema_72_144=var_df['m60_var_ema_close_72_144'][x],
+                                                                   var_ema_144_305=var_df['m60_var_ema_close_144_305'][x],
+                                                                   var_ema_305_610=var_df['m60_var_ema_close_305_610'][x])
 
             # 2.4 SMA
             # Implement it!
 
             # 2.5 Testing
             is_testing = None
-            last_8_highs = raw_df['d_high'][x - (8 - 1): x + 1].tolist()
-            last_8_lows = raw_df['d_low'][x - (8 - 1): x + 1].tolist()
-            last_8_closes = raw_df['d_close'][x - (8 - 1): x + 1].tolist()
+            last_8_highs = raw_df['m60_high'][x - (8 - 1): x + 1].tolist()
+            last_8_lows = raw_df['m60_low'][x - (8 - 1): x + 1].tolist()
+            last_8_closes = raw_df['m60_close'][x - (8 - 1): x + 1].tolist()
 
-            # 2.3.1 Phibo PVPC
+            # 2.5.1 Phibo PVPC
             periods = [1292, 305, 72]
             for p in periods:
-                db_prefix = 'd_pv_'
+                db_prefix = 'm60_pv_'
                 db_field_name = db_prefix + str(p)
 
                 last_8_i_values = pvpc_df[db_field_name][x - (8 - 1): x + 1]
@@ -533,7 +546,7 @@ class D_rawData(RawData):
                     is_testing = p
                     break
 
-                db_prefix = 'd_pc_'
+                db_prefix = 'm60_pc_'
                 db_field_name = db_prefix + str(p)
 
                 last_8_i_values = pvpc_df[db_field_name][x - (8 - 1): x + 1]
@@ -549,9 +562,9 @@ class D_rawData(RawData):
 
             obj['pvpc_test'] = is_testing
 
-            # 2.3.2 EMA (close)
+            # 2.5.2 EMA (close)
             periods = [610, 305, 144, 72]
-            db_prefix = 'd_ema_close_'
+            db_prefix = 'm60_ema_close_'
             for p in periods:
                 db_field_name = db_prefix + str(p)
 
@@ -568,9 +581,9 @@ class D_rawData(RawData):
 
             obj['ema_test'] = is_testing
 
-            # 2.3.3 SMA (close)
+            # 2.5.3 SMA (close)
             periods = [200, 50]
-            db_prefix = 'd_sma_close_'
+            db_prefix = 'm60_sma_close_'
             for p in periods:
                 db_field_name = db_prefix + str(p)
 
@@ -587,18 +600,18 @@ class D_rawData(RawData):
 
             obj['sma_test'] = is_testing
 
-            obj = models_d.D_tc(**obj)
+            obj = models_m60.M60_tc(**obj)
             objs.append(obj)
 
-        # 4. Send to DB
+        # 3. Send to DB
         if self.last_periods > 0:
-            models_d.D_tc.bulk_update_or_create(objs[-self.last_periods:])  # Ascending
+            models_m60.M60_tc.bulk_update_or_create(objs[-self.last_periods:])  # Ascending
         else:
-            models_d.D_tc.bulk_create(objs)
+            models_m60.M60_tc.bulk_create(objs)
 
     def prepare_cache_tc(self):
         mod = 'tc'
-        self.cache[mod]['df'] = pd.DataFrame(data=models_d.D_tc.objects.filter(raw__asset=self.asset).values())
+        self.cache[mod]['df'] = pd.DataFrame(data=models_m60.M60_tc.objects.filter(raw__asset=self.asset).values())
 
         # Ignoring extra fields...
         self.cache[mod]['df'] = self.cache[mod]['df'].drop(columns=['id', 'raw_id'], errors='ignore')
@@ -653,18 +666,18 @@ class D_rawData(RawData):
                                      pvpc_alignment_p0=tc_df['pvpc_alignment'][x],
                                      ema_alignment_p0=tc_df['ema_alignment'][x],
                                      raws_p1={
-                                         'high': raw_df['d_high'][x - 1],
-                                         'low': raw_df['d_low'][x - 1],
+                                         'high': raw_df['m60_high'][x - 1],
+                                         'low': raw_df['m60_low'][x - 1],
                                      },
                                      raws_p0={
-                                         'high': raw_df['d_high'][x],
-                                         'low': raw_df['d_low'][x],
+                                         'high': raw_df['m60_high'][x],
+                                         'low': raw_df['m60_low'][x],
                                      },
                                      emas_p0={
-                                         'ema_close_17': ema_df['d_ema_close_17'][x],
-                                         'ema_close_34': ema_df['d_ema_close_34'][x],
-                                         'ema_close_72': ema_df['d_ema_close_72'][x],
-                                         'ema_close_144': ema_df['d_ema_close_144'][x],
+                                         'ema_close_17': ema_df['m60_ema_close_17'][x],
+                                         'ema_close_34': ema_df['m60_ema_close_34'][x],
+                                         'ema_close_72': ema_df['m60_ema_close_72'][x],
+                                         'ema_close_144': ema_df['m60_ema_close_144'][x],
                                      })
 
             if setup.tc:
@@ -676,33 +689,33 @@ class D_rawData(RawData):
                         continue
 
                 setup.prepare_and_run(datetimes=raw_df['datetime'].tolist(),
-                                      highs=raw_df['d_high'].tolist(),
-                                      lows=raw_df['d_low'].tolist(),
+                                      highs=raw_df['m60_high'].tolist(),
+                                      lows=raw_df['m60_low'].tolist(),
                                       last_pvpcs={
-                                          'pv_72': pvpc_df['d_pv_72'][x],
-                                          'pv_305': pvpc_df['d_pv_305'][x],
-                                          'pv_1292': pvpc_df['d_pv_1292'][x],
-                                          'pc_72': pvpc_df['d_pc_72'][x],
-                                          'pc_305': pvpc_df['d_pc_305'][x],
-                                          'pc_1292': pvpc_df['d_pc_1292'][x]
+                                          'pv_72': pvpc_df['m60_pv_72'][x],
+                                          'pv_305': pvpc_df['m60_pv_305'][x],
+                                          'pv_1292': pvpc_df['m60_pv_1292'][x],
+                                          'pc_72': pvpc_df['m60_pc_72'][x],
+                                          'pc_305': pvpc_df['m60_pc_305'][x],
+                                          'pc_1292': pvpc_df['m60_pc_1292'][x]
                                       })
                 setup_list.append(setup)
 
                 obj.update(setup.get_attr_values())
-                obj = models_d.D_phiOperation(**obj)
+                obj = models_m60.M60_phiOperation(**obj)
                 objs.append(obj)
 
                 # Setup found for this period. Jump to next one
                 continue
         # 3. Send to DB
-        models_d.D_phiOperation.bulk_update_or_create(objs)  # Ascending
+        models_m60.M60_phiOperation.bulk_update_or_create(objs)  # Ascending
 
     def run_phi_trader_setup_stats(self):
         # 1. Requirements
         # 1.1 Phi Operations (last 4 years only)
         order_by = 'radar_on'
-        date_from = str(datetime.today().date() - timedelta(days=1460))
-        operations = models_d.D_phiOperation.objects.filter(asset=self.asset, radar_on__gte=date_from)\
+        date_from = str(datetime.today().date() - timedelta(days=180))
+        operations = models_m60.M60_phiOperation.objects.filter(asset=self.asset, radar_on__gte=date_from)\
             .order_by(order_by)
 
         # 2. Calculations
@@ -798,8 +811,8 @@ class D_rawData(RawData):
             obj['avg_duration_gain'] = round(duration_gain_sum / obj['gain_count'], 0) if obj['gain_count'] > 0 else None
             obj['avg_duration_loss'] = round(duration_loss_sum / obj['loss_count'], 0) if obj['loss_count'] > 0 else None
 
-            obj = models_d.D_phiStats(**obj)
+            obj = models_m60.M60_phiStats(**obj)
             objs.append(obj)
 
         # 3. Send to DB
-        models_d.D_phiStats.bulk_update_or_create(objs)
+        models_m60.M60_phiStats.bulk_update_or_create(objs)

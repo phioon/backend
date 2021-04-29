@@ -11,6 +11,7 @@ class ProviderManager:
         'eod': [providers.Yahoo(),
                 providers.MarketStack(),
                 providers.AlphaVantage()],
+        'm60': [providers.Yahoo()],
         'profile': [providers.Yahoo()],
         'realtime': [providers.Yahoo()],
         'stock_exchange': [providers.MarketStack()],
@@ -23,6 +24,7 @@ class ProviderManager:
     phioon_as_provider = {
         'assets_by_stock_exchange': [providers.Phioon()],
         'eod': [providers.Phioon()],
+        'm60': [providers.Phioon()],
         'profile': [providers.Phioon()],
         'realtime': [providers.Phioon()],
         'stock_exchange': [providers.Phioon()],
@@ -157,6 +159,24 @@ class ProviderManager:
         log.log_into_db(level=log_level, context=context, message=msg)
         return {}
 
+    def get_m60_data(self, asset_symbol, last_periods):
+        for provider in self.get_providers_by_context('m60'):
+            result = provider.get_m60_data(asset_symbol, last_periods)
+
+            if result['status'] == 200 and result['data']:
+                standard_data = self.standardize_intraday_data(result['data'])
+                return standard_data
+
+        # Went through all providers and couldn't get a validated data.
+        from market.models import Logging
+        log = Logging()
+
+        log_level = 'info'
+        context = self.get_context()
+        msg = str('[%s] No providers could retrieve data.' % asset_symbol)
+        log.log_into_db(level=log_level, context=context, message=msg)
+        return {}
+
     # validators
     def validate_initial_data(self, asset_symbol, provider_id, data, last_periods):
         serializer = {
@@ -236,21 +256,37 @@ class ProviderManager:
 
         return _validated_data
 
+    def standardize_intraday_data(self, validated_data):
+        # Once empty data is already removed by self.replace_inconsistencies_with_trusted_data,
+        # we just need to standardize data before sending it to database.
+        _validated_data = []
+        for data in validated_data:
+            if not phioon_utils.has_empty_fields(data, ignore_fields=['volume']):
+                data['open'] = round(data['open'], 2)
+                data['high'] = round(data['high'], 2)
+                data['low'] = round(data['low'], 2)
+                data['close'] = round(data['close'], 2)
+                data['volume'] = int(data['volume'])
+
+                _validated_data.append(data)
+
+        return _validated_data
+
     # general functions
     def get_eod_data_from_db(self, asset_symbol, last_periods):
         from market.models_d import D_raw
 
         data = {}
         d_raws = list(D_raw.objects.filter(asset=asset_symbol)
-                      .values('d_datetime', 'd_open', 'd_high', 'd_low', 'd_close', 'd_volume')
-                      .order_by('d_datetime'))
+                      .values('datetime', 'd_open', 'd_high', 'd_low', 'd_close', 'd_volume')
+                      .order_by('datetime'))
 
         if last_periods > 0:
             d_raws = self.shrink_data(d_raws, last_periods)
 
         for eod in d_raws:
-            data[eod['d_datetime']] = {
-                    'datetime': eod['d_datetime'],
+            data[eod['datetime']] = {
+                    'datetime': eod['datetime'],
                     'open': eod['d_open'],
                     'high': eod['d_high'],
                     'low': eod['d_low'],
@@ -313,10 +349,6 @@ class ProviderManager:
                 result.append(k)
 
         return result
-
-    def remove_empty_fields(self, raw_data):
-        pass
-
 
     def get_dates_roc_too_high(self, data, d_raws):
         result = []

@@ -9,7 +9,7 @@ from django_engine import settings
 from market.managers.RawDataManager import RawDataManager
 from market import serializers
 from market import models as models_market
-from market import models_d
+from market import models_d, models_m60
 
 import re
 
@@ -70,41 +70,39 @@ class AssetList(APIView):
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
 def IndicatorList(request):
-    result = []
+    result = {}
 
-    # Requirements
+    # 1.  Requirements
+    # 1.1 Raw
     d_raw_fields = models_d.D_raw().get_field_list(field_type='indicator')
+    m60_raw_fields = models_m60.M60_raw().get_field_list(field_type='indicator')
+    raw_fields = d_raw_fields + m60_raw_fields
+    # 1.2 SMA
     d_sma_fields = models_d.D_sma().get_field_list(field_type='indicator')
+    m60_sma_fields = models_m60.M60_sma().get_field_list(field_type='indicator')
+    sma_fields = d_sma_fields + m60_sma_fields
+    # 1.3 EMA
     d_ema_fields = models_d.D_ema().get_field_list(field_type='indicator')
+    m60_ema_fields = models_m60.M60_ema().get_field_list(field_type='indicator')
+    ema_fields = d_ema_fields + m60_ema_fields
+    # 1.4 PVPC
     d_pvpc_fields = models_d.D_pvpc().get_field_list(field_type='indicator')
+    # 1.5 ROC
     d_roc_fields = models_d.D_roc().get_field_list(field_type='indicator')
 
-    # 1. Constant
-    # obj = {
-    #     'time_interval': 'any',
-    #     'category': 'constant',
-    #     'subcategory': 'constant',
-    #     'indicator': 'constant',
-    #     'periods': 0,
-    #     'id': 'constant',
-    #     'instances': [{}],
-    # }
-
-    # 2. Daily
-    time_interval = 'd'
-    # 2.1 Price Lagging: Quote
+    # 2 Price Lagging
+    # 2.1 Quote
     category = 'price_lagging'
     subcategory = 'quote'
     indicator = 'quote'
     related_to = None
-    for field_name in d_raw_fields:
+    for field_name in raw_fields:
         periods = 0
-        generic_id = field_name[field_name.index('_') + 1:]
+        time_interval, generic_id,  = field_name.split('_', maxsplit=1)
 
-        obj = phioon_utils.retrieve_obj_from_obj_list(result, 'id', generic_id)
-        if not obj:
+        if generic_id not in result.keys():
             # Create it
-            obj = {
+            result[generic_id] = {
                 'id': generic_id,
                 'instances': [],
                 'category': category,
@@ -114,20 +112,18 @@ def IndicatorList(request):
                 'periods': periods
             }
 
-        obj['instances'].append({
+        result[generic_id]['instances'].append({
             'name': field_name,
-            'interval': time_interval
-        })
-        result.append(obj)
+            'interval': time_interval})
 
-    # 2.2 Price Lagging: SMA
+    # 2.2 SMA
     category = 'price_lagging'
     subcategory = 'moving_average'
     indicator = 'sma'
     related_to = None
-    for field_name in d_sma_fields:
+    for field_name in sma_fields:
         periods = int(re.findall('[0-9]+', field_name)[0])
-        generic_id = str(field_name)[str(field_name).index('_') + 1:]
+        time_interval, generic_id, = field_name.split('_', maxsplit=1)
 
         if '_open' in generic_id:
             related_to = 'open'
@@ -138,10 +134,9 @@ def IndicatorList(request):
         elif '_close' in generic_id:
             related_to = 'close'
 
-        obj = phioon_utils.retrieve_obj_from_obj_list(result, 'id', generic_id)
-        if not obj:
+        if generic_id not in result.keys():
             # Create it
-            obj = {
+            result[generic_id] = {
                 'id': generic_id,
                 'instances': [],
                 'category': category,
@@ -151,20 +146,19 @@ def IndicatorList(request):
                 'periods': periods
             }
 
-        obj['instances'].append({
+        result[generic_id]['instances'].append({
             'name': field_name,
             'interval': time_interval
         })
-        result.append(obj)
 
-    # 2.3 Price Lagging: EMA
+    # 2.3 EMA
     category = 'price_lagging'
     subcategory = 'moving_average'
     indicator = 'ema'
     related_to = None
-    for field_name in d_ema_fields:
+    for field_name in ema_fields:
         periods = int(re.findall('[0-9]+', field_name)[0])
-        generic_id = str(field_name)[str(field_name).index('_') + 1:]
+        time_interval, generic_id, = field_name.split('_', maxsplit=1)
 
         if '_open' in generic_id:
             related_to = 'open'
@@ -175,10 +169,9 @@ def IndicatorList(request):
         elif '_close' in generic_id:
             related_to = 'close'
 
-        obj = phioon_utils.retrieve_obj_from_obj_list(result, 'id', generic_id)
-        if not obj:
+        if generic_id not in result.keys():
             # Create it
-            obj = {
+            result[generic_id] = {
                 'id': generic_id,
                 'instances': [],
                 'category': category,
@@ -188,25 +181,23 @@ def IndicatorList(request):
                 'periods': periods
             }
 
-        obj['instances'].append({
+        result[generic_id]['instances'].append({
             'name': field_name,
             'interval': time_interval
         })
-        result.append(obj)
 
-    # 2.4 Price Lagging: PHIBO
+    # 2.4 Phibo PVPC
     category = 'price_lagging'
     subcategory = 'phibo'
     indicator = 'phibo'
     related_to = None
     for field_name in d_pvpc_fields:
         periods = int(re.findall('[0-9]+', field_name)[0])
-        generic_id = str(field_name)[str(field_name).index('_') + 1:]
+        time_interval, generic_id, = field_name.split('_', maxsplit=1)
 
-        obj = phioon_utils.retrieve_obj_from_obj_list(result, 'id', generic_id)
-        if not obj:
+        if generic_id not in result.keys():
             # Create it
-            obj = {
+            result[generic_id] = {
                 'id': generic_id,
                 'instances': [],
                 'category': category,
@@ -216,11 +207,10 @@ def IndicatorList(request):
                 'periods': periods
             }
 
-        obj['instances'].append({
+        result[generic_id]['instances'].append({
             'name': field_name,
             'interval': time_interval
         })
-        result.append(obj)
 
     # 2.5 Centered Oscillator: ROC
     category = 'centered_oscillator'
@@ -229,17 +219,16 @@ def IndicatorList(request):
     related_to = None
     for field_name in d_roc_fields:
         periods = int(re.findall('[0-9]+', field_name)[0])
-        generic_id = str(field_name)[str(field_name).index('_') + 1:]
+        time_interval, generic_id, = field_name.split('_', maxsplit=1)
 
         if '_ema' in generic_id:
             related_to = 'ema'
         elif '_sma' in generic_id:
             related_to = 'sma'
 
-        obj = phioon_utils.retrieve_obj_from_obj_list(result, 'id', generic_id)
-        if not obj:
+        if generic_id not in result.keys():
             # Create it
-            obj = {
+            result[generic_id] = {
                 'id': generic_id,
                 'instances': [],
                 'category': category,
@@ -249,10 +238,10 @@ def IndicatorList(request):
                 'periods': periods
             }
 
-        obj['instances'].append({
+        result[generic_id]['instances'].append({
             'name': field_name,
             'interval': time_interval
         })
-        result.append(obj)
 
+    result = result.values()
     return Response(result)

@@ -59,9 +59,12 @@ def get_field_as_unique_key(obj_list, key_field):
     return dictionary
 
 
-def has_empty_fields(obj):
-    for value in obj.values():
-        if not value:
+def has_empty_fields(obj, ignore_fields=None):
+    if ignore_fields is None:
+        ignore_fields = []
+
+    for k, v in obj.items():
+        if k not in ignore_fields and not v:
             return True
     return False
 
@@ -70,6 +73,13 @@ def retrieve_obj_from_obj_list(obj_list, key_field, value):
     for obj in obj_list:
         if obj[key_field] == value:
             return obj
+
+
+def index_obj_in_obj_list(obj_list, key_field, value):
+    for i in range(len(obj_list)):
+        if obj_list[i][key_field] == value:
+            return i
+    return -1
 
 
 def order_by_asc(obj_list, field):

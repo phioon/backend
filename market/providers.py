@@ -47,9 +47,10 @@ class Phioon:
     api_tickers_by_stock_exchange = str(settings.PROVIDER_API_BASE + 'exchanges/<se_short>/tickers/?'
                                                                      'api_key=<api_key>')
 
-    api_eod = str(settings.PROVIDER_API_BASE + 'tickers/<asset_symbol>/eod/?'
+    api_raw = str(settings.PROVIDER_API_BASE + 'tickers/<asset_symbol>/<time_interval>/?'
                                                'limit=<limit>&'
                                                'api_key=<api_key>')
+
     api_profile = str(settings.PROVIDER_API_BASE + 'tickers/<asset_symbol>/profile/?'
                                                    'api_key=<api_key>')
     api_realtime = str(settings.PROVIDER_API_BASE + 'tickers/<asset_symbol>/realtime/?'
@@ -134,16 +135,17 @@ class Phioon:
 
         return result
 
-    def get_eod_data(self, asset_symbol, last_x_periods):
+    def get_eod_data(self, asset_symbol, last_periods):
         # Get EOD data
         result = {'status': None, 'data': None}
         converted_symbol = self.convert_symbol(asset_symbol)
 
-        request = self.api_eod
+        request = self.api_raw
         request = request.replace('<asset_symbol>', converted_symbol)
+        request = request.replace('<time_interval>', 'eod')
         request = request.replace('<api_key>', self.api_key)
 
-        request = request.replace('<limit>', str(last_x_periods))
+        request = request.replace('<limit>', str(last_periods))
         result['rdata'] = request_get_data(request)
 
         if 'message' in result['rdata'] or len(result['rdata']) == 0:
@@ -151,6 +153,27 @@ class Phioon:
         else:
             result['status'] = 200
             result['data'] = self.prepare_eod_data(result['rdata']['data']['eod'])
+
+        return result
+
+    def get_m60_data(self, asset_symbol, last_periods):
+        # Get M60 data
+        result = {'status': None, 'data': None}
+        converted_symbol = self.convert_symbol(asset_symbol)
+
+        request = self.api_raw
+        request = request.replace('<asset_symbol>', converted_symbol)
+        request = request.replace('<time_interval>', 'm60')
+        request = request.replace('<api_key>', self.api_key)
+
+        request = request.replace('<limit>', str(last_periods))
+        result['rdata'] = request_get_data(request)
+
+        if 'message' in result['rdata'] or len(result['rdata']) == 0:
+            result['status'] = 404
+        else:
+            result['status'] = 200
+            result['data'] = self.prepare_m60_data(result['rdata']['data']['m60'])
 
         return result
 
@@ -248,8 +271,22 @@ class Phioon:
                                          decimals=5,
                                          if_denominator_is_zero=1)
 
-            data.append({'datetime': str(obj['date']),
+            data.append({'datetime': str(obj['datetime']),
                          'adj_pct': adj_pct,
+                         'open': obj['open'],
+                         'high': obj['high'],
+                         'low': obj['low'],
+                         'close': obj['adj_close'],
+                         'volume': obj['volume']})
+
+        return data
+
+    def prepare_m60_data(self, rdata):
+        # Prepares data to be recognized as table's fields.
+        data = []
+
+        for obj in rdata:
+            data.append({'datetime': str(obj['datetime']),
                          'open': obj['open'],
                          'high': obj['high'],
                          'low': obj['low'],
@@ -706,10 +743,10 @@ class Yahoo:
                       'symbol=<asset_symbol>')
     api_realtime = str('https://apidojo-yahoo-finance-v1.p.rapidapi.com/stock/v2/get-profile?'
                        'symbol=<asset_symbol>')
-    api_eod = str('https://apidojo-yahoo-finance-v1.p.rapidapi.com/stock/v2/get-chart?'
-                  'symbol=<asset_symbol>&'
-                  'interval=<interval>&'
-                  'range=<range>')
+    api_chart = str('https://apidojo-yahoo-finance-v1.p.rapidapi.com/stock/v2/get-chart?'
+                    'symbol=<asset_symbol>&'
+                    'interval=<interval>&'
+                    'range=<range>')
     api_key = '60d22cc6a5msh3e9ce925473ad87p1f91f1jsn3dfaee312de6'
 
     # utils
@@ -772,7 +809,7 @@ class Yahoo:
 
         return country_code
 
-    def get_date_isoformat(self, timestamp):
+    def get_zeroed_date(self, timestamp):
         timestamp = str(timestamp)
         if 'T' in timestamp:
             timestamp = timestamp[: timestamp.index('T')]
@@ -792,23 +829,25 @@ class Yahoo:
         return round(pct_change, 2)
 
     # services
-    def get_eod_data(self, asset_symbol, last_x_periods):
+    def get_eod_data(self, asset_symbol, last_periods):
         # Get EOD data
         result = {'status': None, 'data': None}
         converted_symbol = self.convert_symbol(asset_symbol)
 
         headers = {'X-RapidAPI-Key': self.api_key}
-        request = self.api_eod
+        request = self.api_chart
         request = request.replace('<asset_symbol>', converted_symbol)
         request = request.replace('<interval>', '1d')
 
-        if last_x_periods == 0 or last_x_periods > 250:
+        if last_periods == 0 or last_periods > 250:
             request = request.replace('<range>', '10y')
-        elif last_x_periods <= 5:
+        elif last_periods <= 5:
             request = request.replace('<range>', '5d')
-        elif last_x_periods <= 20:
+        elif last_periods <= 20:
             request = request.replace('<range>', '1mo')
-        elif last_x_periods <= 250:
+        elif last_periods <= 125:
+            request = request.replace('<range>', '6mo')
+        elif last_periods <= 250:
             request = request.replace('<range>', '1y')
 
         result['rdata'] = request_get_data(request, headers)
@@ -818,6 +857,39 @@ class Yahoo:
                 len(result['rdata']['chart']['result']) > 0:
             result['status'] = 200
             result['data'] = self.prepare_eod_data(result['rdata']['chart']['result'][0])
+        else:
+            result['status'] = 404
+
+        return result
+
+    def get_m60_data(self, asset_symbol, last_periods):
+        # Get M60 data
+        result = {'status': None, 'data': None}
+        converted_symbol = self.convert_symbol(asset_symbol)
+
+        headers = {'X-RapidAPI-Key': self.api_key}
+        request = self.api_chart
+        request = request.replace('<asset_symbol>', converted_symbol)
+        request = request.replace('<interval>', '60m')
+
+        if last_periods == 0 or last_periods > 1500:
+            request = request.replace('<range>', '2y')
+        elif last_periods <= 30:
+            request = request.replace('<range>', '5d')
+        elif last_periods <= 130:
+            request = request.replace('<range>', '1mo')
+        elif last_periods <= 750:
+            request = request.replace('<range>', '6mo')
+        elif last_periods <= 1500:
+            request = request.replace('<range>', '1y')
+
+        result['rdata'] = request_get_data(request, headers)
+
+        if 'chart' in result['rdata'] and \
+                result['rdata']['chart']['result'] and \
+                len(result['rdata']['chart']['result']) > 0:
+            result['status'] = 200
+            result['data'] = self.prepare_m60_data(result['rdata']['chart']['result'][0])
         else:
             result['status'] = 404
 
@@ -872,7 +944,7 @@ class Yahoo:
                 adj_pct = 1         # default value
 
                 datetime = utils.convert_epoch_to_timestamp(rdata['timestamp'][x])
-                datetime = self.get_date_isoformat(datetime)
+                datetime = self.get_zeroed_date(datetime)
                 open = rdata['indicators']['quote'][0]['open'][x]
                 high = rdata['indicators']['quote'][0]['high'][x]
                 low = rdata['indicators']['quote'][0]['low'][x]
@@ -886,12 +958,34 @@ class Yahoo:
                                              decimals=5,
                                              if_denominator_is_zero=1)
 
-                data.append({'datetime': self.get_date_isoformat(datetime),
+                data.append({'datetime': datetime,
                              'adj_pct': adj_pct,
                              'open': open,
                              'high': high,
                              'low': low,
                              'close': adj_close,
+                             'volume': volume})
+
+        return data
+
+    def prepare_m60_data(self, rdata):
+        # Prepares data to be recognized as table's fields.
+        data = []
+
+        if 'timestamp' in rdata:
+            for x in range(len(rdata['timestamp'])):
+                datetime = utils.convert_epoch_to_timestamp(rdata['timestamp'][x])
+                open = rdata['indicators']['quote'][0]['open'][x]
+                high = rdata['indicators']['quote'][0]['high'][x]
+                low = rdata['indicators']['quote'][0]['low'][x]
+                close = rdata['indicators']['quote'][0]['close'][x]
+                volume = rdata['indicators']['quote'][0]['volume'][x]
+
+                data.append({'datetime': datetime,
+                             'open': open,
+                             'high': high,
+                             'low': low,
+                             'close': close,
                              'volume': volume})
 
         return data
