@@ -27,7 +27,7 @@ class M60_rawData(RawData):
     def prepare_last_periods(self):
         self.last_periods = self.asset.run_check_list(last_periods=self.last_periods)
 
-        if self.last_periods <= 30:
+        if self.last_periods <= 50:
             rows_count = self.asset.m60_raws.count()
             if rows_count <= 100:
                 # Situation 1: Asset is pretty new (company just launched their IPO)
@@ -529,7 +529,7 @@ class M60_rawData(RawData):
             last_8_lows = raw_df['m60_low'][x - (8 - 1): x + 1].tolist()
             last_8_closes = raw_df['m60_close'][x - (8 - 1): x + 1].tolist()
 
-            # 2.3.1 Phibo PVPC
+            # 2.5.1 Phibo PVPC
             periods = [1292, 305, 72]
             for p in periods:
                 db_prefix = 'm60_pv_'
@@ -562,7 +562,7 @@ class M60_rawData(RawData):
 
             obj['pvpc_test'] = is_testing
 
-            # 2.3.2 EMA (close)
+            # 2.5.2 EMA (close)
             periods = [610, 305, 144, 72]
             db_prefix = 'm60_ema_close_'
             for p in periods:
@@ -581,7 +581,7 @@ class M60_rawData(RawData):
 
             obj['ema_test'] = is_testing
 
-            # 2.3.3 SMA (close)
+            # 2.5.3 SMA (close)
             periods = [200, 50]
             db_prefix = 'm60_sma_close_'
             for p in periods:
@@ -603,7 +603,7 @@ class M60_rawData(RawData):
             obj = models_m60.M60_tc(**obj)
             objs.append(obj)
 
-        # 4. Send to DB
+        # 3. Send to DB
         if self.last_periods > 0:
             models_m60.M60_tc.bulk_update_or_create(objs[-self.last_periods:])  # Ascending
         else:

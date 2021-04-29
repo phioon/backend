@@ -337,7 +337,7 @@ class SetupList(generics.ListAPIView):
         date_from = self.request.query_params.get('dateFrom')
 
         if date_from is None:
-            date_from = str(datetime.today().date() - timedelta(days=45))
+            date_from = str(datetime.today().date() - timedelta(days=90))
 
         setups = models_d.D_phiOperation.objects.filter(
             Q(raw__asset__stock_exchange__exact=stock_exchange, is_public=True),
