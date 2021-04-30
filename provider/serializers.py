@@ -1,6 +1,5 @@
 from django.db.models import F
 from market import models as market_models
-from market import models_d as market_models_d
 from rest_framework import serializers
 from . import messages
 
@@ -80,14 +79,58 @@ class EodSerializer(serializers.ModelSerializer):
             # Limit not specified
             limit = default_limit
 
-        result = market_models_d.D_raw.objects.filter(asset=obj) \
-            .annotate(stock_exchange=F('asset__stock_exchange'),
-                      open=F('d_open'),
-                      high=F('d_high'),
-                      low=F('d_low'),
-                      close=F('d_close'),
-                      adj_close=F('d_close'),
-                      volume=F('d_volume'),) \
+        result = obj.d_raws.annotate(stock_exchange=F('asset__stock_exchange'),
+                                     open=F('d_open'),
+                                     high=F('d_high'),
+                                     low=F('d_low'),
+                                     close=F('d_close'),
+                                     adj_close=F('d_close'),
+                                     volume=F('d_volume'),) \
+            .values('stock_exchange', 'asset', 'datetime', 'open', 'high', 'low', 'close', 'adj_close', 'volume') \
+            .order_by('-datetime')
+
+        if limit > 0:
+            result = result[:limit]
+
+        return result
+
+
+class M60Serializer(serializers.ModelSerializer):
+    asset_name = serializers.ReadOnlyField(source='profile.asset_name')
+    stock_exchange = serializers.SerializerMethodField()
+    m60 = serializers.SerializerMethodField()
+
+    class Meta:
+        model = market_models.Asset
+        fields = ['asset_symbol', 'asset_name', 'stock_exchange', 'm60']
+
+    def get_stock_exchange(self, obj):
+        return market_models.StockExchange.objects.filter(pk=obj.stock_exchange) \
+            .annotate(symbol=F('pk')) \
+            .values('symbol', 'name', 'timezone', 'country_code', 'currency_code')
+
+    def get_m60(self, obj):
+        default_limit = 100                 # When not specified, considers this value
+
+        limit = self.context['request'].query_params.get('limit')
+
+        if limit:
+            try:
+                limit = int(limit)
+            except ValueError:
+                obj_res = {'message': messages.get_message('enUS', 'eodlist', 'invalid_limit')}
+                raise serializers.ValidationError(obj_res)
+        else:
+            # Limit not specified
+            limit = default_limit
+
+        result = obj.m60_raws.annotate(stock_exchange=F('asset__stock_exchange'),
+                                       open=F('m60_open'),
+                                       high=F('m60_high'),
+                                       low=F('m60_low'),
+                                       close=F('m60_close'),
+                                       adj_close=F('m60_close'),
+                                       volume=F('m60_volume'),) \
             .values('stock_exchange', 'asset', 'datetime', 'open', 'high', 'low', 'close', 'adj_close', 'volume') \
             .order_by('-datetime')
 

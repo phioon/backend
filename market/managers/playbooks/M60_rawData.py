@@ -41,54 +41,56 @@ class M60_rawData(RawData):
             self.asset.update_stats()
         self.prepare_cache_raw()
 
-        # 2.  Phibo PVPC
-        self.run_phibo_pvpc()
-        self.prepare_cache_phibo_pvpc()
+        if self.cache['raw']['qs'].exists():
+            # 2.  Phibo PVPC
+            self.run_phibo_pvpc()
+            self.prepare_cache_phibo_pvpc()
 
-        # 3.  Moving Averages
-        # 3.1 EMA
-        self.run_ema()
-        self.prepare_cache_ema()
-        # 3.1 SMA
-        self.run_sma()
-        self.prepare_cache_sma()
+            # 3.  Moving Averages
+            # 3.1 EMA
+            self.run_ema()
+            self.prepare_cache_ema()
+            # 3.1 SMA
+            self.run_sma()
+            self.prepare_cache_sma()
 
-        # 4. Rate of Change (ROC)
-        self.run_roc()
+            # 4. Rate of Change (ROC)
+            self.run_roc()
 
-        # 5. Variation
-        self.run_var()
-        self.prepare_cache_var()
+            # 5. Variation
+            self.run_var()
+            self.prepare_cache_var()
 
-        # 6. Technical Conditions
-        self.run_tc()
-        self.prepare_cache_tc()
+            # 6. Technical Conditions
+            self.run_tc()
+            self.prepare_cache_tc()
 
-        # 7. Phi Trader: Setups and Stats
-        self.run_phi_trader_setups()
-        self.run_phi_trader_setup_stats()
+            # 7. Phi Trader: Setups and Stats
+            self.run_phi_trader_setups()
+            self.run_phi_trader_setup_stats()
 
     def run_phi_trader(self):
         # 1.  Requirements
         # 1.1 Raw Data
         self.prepare_cache_raw()
 
-        # 1.2 Phibo PVPC
-        self.prepare_cache_phibo_pvpc()
+        if self.cache['raw']['qs'].exists():
+            # 1.2 Phibo PVPC
+            self.prepare_cache_phibo_pvpc()
 
-        # 1.3 Moving Averages
-        # 1.3.1 EMA
-        self.prepare_cache_ema()
+            # 1.3 Moving Averages
+            # 1.3.1 EMA
+            self.prepare_cache_ema()
 
-        # 1.3.2 SMA
-        # self.prepare_cache_sma()
+            # 1.3.2 SMA
+            # self.prepare_cache_sma()
 
-        # 1.4 Technical Conditions
-        self.prepare_cache_tc()
+            # 1.4 Technical Conditions
+            self.prepare_cache_tc()
 
-        # 2. Phi Trader: Setups and Stats
-        self.run_phi_trader_setups()
-        self.run_phi_trader_setup_stats()
+            # 2. Phi Trader: Setups and Stats
+            self.run_phi_trader_setups()
+            self.run_phi_trader_setup_stats()
 
     # 1. Raw
     def run_raw(self):

@@ -1,4 +1,5 @@
-from django.db.models import Q
+from django.db.models import Q, F
+from django.db.models.functions import Concat
 from django.core import serializers as django_serializers
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework import generics, permissions
@@ -343,6 +344,8 @@ class SetupList(generics.ListAPIView):
             Q(raw__asset__stock_exchange__exact=stock_exchange, is_public=True),
             Q(ended_on__isnull=True) | Q(radar_on__gte=date_from))
 
+        print('# Phi Operations: %s' % setups.count())
+
         return setups
 
 
@@ -357,15 +360,14 @@ class SetupStatsList(generics.ListAPIView):
         if date_from is None:
             date_from = str(datetime.today().date() - timedelta(days=90))
 
-        phi_operations = models_d.D_phiOperation.objects\
+        asset_tc_ids = models_d.D_phiOperation.objects\
             .filter(Q(raw__asset__stock_exchange__exact=stock_exchange, is_public=True),
                     Q(ended_on__isnull=True) | Q(radar_on__gte=date_from))\
-            .values('tc_id', 'asset_id')\
+            .annotate(asset_tc_id=Concat(F('asset'), F('tc')))\
+            .values_list('asset_tc_id')\
             .distinct()
 
-        tc_ids = phi_operations.values_list('tc_id')
-        asset_symbols = phi_operations.values_list('asset_id')
+        phi_stats = models_d.D_phiStats.objects.annotate(asset_tc_id=Concat(F('asset'), F('tc')))\
+            .filter(asset_tc_id__in=asset_tc_ids)
 
-        stats_data = models_d.D_phiStats.objects.filter(tc_id__in=tc_ids, asset_id__in=asset_symbols)
-
-        return stats_data
+        return phi_stats

@@ -9,4 +9,5 @@ urlpatterns = [
     path('tickers/<ticker>/profile/', views.AssetProfileDetail.as_view(), name='Asset Profile'),
     path('tickers/<ticker>/realtime/', views.AssetRealtimeDetail.as_view(), name='Asset Realtime'),
     path('tickers/<ticker>/eod/', views.EodList.as_view(), name='EOD data'),
+    path('tickers/<ticker>/m60/', views.M60List.as_view(), name='M60 data'),
 ]

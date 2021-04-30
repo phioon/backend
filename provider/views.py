@@ -130,3 +130,25 @@ class EodList(generics.RetrieveAPIView):
         else:
             obj_res = {'message': messages.get_message('enUS', 'generic', 'invalid_api_key')}
             return Response(obj_res)
+
+
+class M60List(generics.RetrieveAPIView):
+    permission_classes = [permissions.AllowAny]
+    serializer_class = serializers.M60Serializer
+
+    def get_queryset(self):
+        ticker = self.request.parser_context['kwargs']['ticker']
+        return Asset.objects.get(pk=ticker)
+
+    def get(self, request, *args, **kwargs):
+        api_key = self.request.query_params.get('api_key')
+
+        if api_key == settings.API_KEY:
+            queryset = self.get_queryset()
+            serializer = self.get_serializer(queryset)
+
+            obj_res = {'data': serializer.data}
+            return Response(obj_res)
+        else:
+            obj_res = {'message': messages.get_message('enUS', 'generic', 'invalid_api_key')}
+            return Response(obj_res)
