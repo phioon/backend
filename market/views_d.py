@@ -341,10 +341,8 @@ class SetupList(generics.ListAPIView):
             date_from = str(datetime.today().date() - timedelta(days=90))
 
         setups = models_d.D_phiOperation.objects.filter(
-            Q(raw__asset__stock_exchange__exact=stock_exchange, is_public=True),
+            Q(asset__stock_exchange__exact=stock_exchange, is_public=True),
             Q(ended_on__isnull=True) | Q(radar_on__gte=date_from))
-
-        print('# Phi Operations: %s' % setups.count())
 
         return setups
 
@@ -360,14 +358,14 @@ class SetupStatsList(generics.ListAPIView):
         if date_from is None:
             date_from = str(datetime.today().date() - timedelta(days=90))
 
-        asset_tc_ids = models_d.D_phiOperation.objects\
-            .filter(Q(raw__asset__stock_exchange__exact=stock_exchange, is_public=True),
-                    Q(ended_on__isnull=True) | Q(radar_on__gte=date_from))\
+        asset_tc_ids = models_d.D_phiOperation.objects.filter(
+            Q(asset__stock_exchange__exact=stock_exchange, is_public=True),
+            Q(ended_on__isnull=True) | Q(radar_on__gte=date_from))\
             .annotate(asset_tc_id=Concat(F('asset'), F('tc')))\
-            .values_list('asset_tc_id')\
-            .distinct()
+            .values_list('asset_tc_id')
 
         phi_stats = models_d.D_phiStats.objects.annotate(asset_tc_id=Concat(F('asset'), F('tc')))\
-            .filter(asset_tc_id__in=asset_tc_ids)
+            .filter(asset_tc_id__in=asset_tc_ids)\
+            .distinct()
 
         return phi_stats
